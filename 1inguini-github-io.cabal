@@ -1,0 +1,68 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 29cf18ce07a730c8fc5670510487f7195fa3db68746a58c7af0abeb2029f723d
+
+name:           1inguini-github-io
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/1inguini/1inguini.github.io#readme>
+homepage:       https://github.com/1inguini/1inguini.github.io#readme
+bug-reports:    https://github.com/1inguini/1inguini.github.io/issues
+author:         linguini
+maintainer:     9647142@gmail.com
+copyright:      Copyright: © 2020 linguini
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/1inguini/1inguini.github.io
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_1inguini_github_io
+  hs-source-dirs:
+      template
+  build-depends:
+      base >=4.7 && <5
+    , hakyll
+    , lucid
+  default-language: Haskell2010
+
+executable 1inguini-github-io.exe
+  main-is: site.hs
+  other-modules:
+      Paths_1inguini_github_io
+  hs-source-dirs:
+      ./.
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      1inguini-github-io
+    , base >=4.7 && <5
+    , hakyll
+    , lucid
+  default-language: Haskell2010
+
+test-suite 1inguini-github-io-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_1inguini_github_io
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      1inguini-github-io
+    , base >=4.7 && <5
+    , hakyll
+    , lucid
+  default-language: Haskell2010
