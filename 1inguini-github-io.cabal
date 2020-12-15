@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 29cf18ce07a730c8fc5670510487f7195fa3db68746a58c7af0abeb2029f723d
+-- hash: 56455a163263930ce542b2e5f94ccdac4b2099d2ae9c8bc925ff08c6a44c9c48
 
 name:           1inguini-github-io
 version:        0.1.0.0
@@ -27,29 +27,32 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Index
+      Template
   other-modules:
       Paths_1inguini_github_io
   hs-source-dirs:
-      template
+      templates
   build-depends:
       base >=4.7 && <5
     , hakyll
     , lucid
+    , text
   default-language: Haskell2010
 
-executable 1inguini-github-io.exe
-  main-is: site.hs
+executable site
+  main-is: Main.hs
   other-modules:
       Paths_1inguini_github_io
   hs-source-dirs:
       ./.
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O0 -dynamic
   build-depends:
       1inguini-github-io
     , base >=4.7 && <5
     , hakyll
     , lucid
+    , text
   default-language: Haskell2010
 
 test-suite 1inguini-github-io-test
@@ -65,4 +68,5 @@ test-suite 1inguini-github-io-test
     , base >=4.7 && <5
     , hakyll
     , lucid
+    , text
   default-language: Haskell2010
