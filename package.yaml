@@ -28,6 +28,7 @@ dependencies:
 library:
   source-dirs:
   - templates
+  - posts/2020/12
 
 executables:
   site:

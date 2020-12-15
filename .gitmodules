@@ -1,4 +1,0 @@
-[submodule "_site"]
-	path = _site
-	url = https://github.com/1inguini/1inguini.github.io.git
-	branch = gh-pages
