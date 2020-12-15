@@ -21,4 +21,20 @@ date16 = section_ $ do
   h2_ "今までの進捗"
   p_ $
     "Hakyllは生成したファイルを_site/以下に吐くのでgitのルートディレクトリか/docディレクトリかにサイトがあることを期待するGitHub Pagesに使うには少し工夫が必要でした。" <> "何したかって言いますとgh-pagesブランチを作ってそれを" <> code_ "git submodule add -b gh-pages https://github.com/1inguini/1inguini.github.io.git _site" <> "しました。" <> "「しました」ってさらっと書いてますが" <> code_ "stack run rebuild" <> "して.gitディレクトリを消し飛ばしたり" <> code_ "git reset --hard" <> code_ "git push -f" <> "しまくったりと(良い子は真似しないでね!)すんなりはできませんでした(もっとgitと仲良くなろうね)。" <> "ところで今見たらHakyll側で割と簡単に出力先を変えれるっぽいな?"
-  
+
+  p_ $
+    "というわけで早速" <> code_ "main = hakyll $ do" <> "を" <> code_ "hakyllWith defaultConfiguration { destinationDirectory = \"doc\" } $ do" <> "に置き換えました。いやー快適。やったね。"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
