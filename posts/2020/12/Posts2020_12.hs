@@ -25,16 +25,6 @@ date16 = section_ $ do
   p_ $
     "というわけで早速" <> code_ "main = hakyll $ do" <> "を" <> code_ "hakyllWith defaultConfiguration { destinationDirectory = \"doc\" } $ do" <> "に置き換えました。いやー快適。やったね。"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+  h2_ "追記"
+  p_ $
+    "docじゃなくてdocsだったわウケ。「No " <> code_ "/docs" <> " folder was found to build GitHub Pages. Check the source setting for this repository.」って怒られちゃった。"

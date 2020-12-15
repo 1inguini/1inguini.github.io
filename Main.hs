@@ -10,7 +10,7 @@ import Template
 import qualified Posts2020_12
 
 main :: IO ()
-main = hakyllWith defaultConfiguration { destinationDirectory = "doc" } $ do
+main = hakyllWith defaultConfiguration { destinationDirectory = "docs" } $ do
   create ["index.html"] $ do
     route idRoute
     compile $ do
@@ -21,3 +21,4 @@ main = hakyllWith defaultConfiguration { destinationDirectory = "doc" } $ do
     compile $ do
       makeItem $ renderBS $
         template "2020/12/16" Posts2020_12.date16
+
