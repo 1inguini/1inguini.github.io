@@ -25,7 +25,7 @@ defaultIndexData =
   IndexData
     { externals =
         [ (https "twitter.com/1inguini", "Twitter"),
-          (https "twitter.com/1inguini", "Twitterの飲精アカウント"),
+          (https "twitter.com/1inguini1tasita", "Twitterの飲精アカウント"),
           (https "github.com/1inguini", "GitHub"),
           (https "linguini.booth.pm", "BOOTH"),
           (https "www.amazon.co.jp/hz/wishlist/dl/invite/ghyjmBH?ref_=wl_share", "干し芋"),
