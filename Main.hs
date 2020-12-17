@@ -4,12 +4,14 @@ module Main where
 
 import Control.Arrow
 import Control.Exception (Exception (displayException))
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.Text.Lazy as Text
 import Hakyll
 import Language.Haskell.Interpreter (OptionVal ((:=)))
 import qualified Language.Haskell.Interpreter as Hint
 import Lucid
 import System.IO (hPutStrLn, stderr)
+import System.Process (readProcess)
 import Template (BlogPost (..))
 
 posts = "posts/*/*"
@@ -33,9 +35,7 @@ main =
                       <$> ( loadAllSnapshots posts pathAndFeedConfirguration ::
                               Compiler [Item (FilePath, FeedConfiguration)]
                           )
-                  makeItem $
-                    renderBS $
-                      index links
+                  makeHtml $ index links
 
           match posts $ do
             route $ setExtension "html"
@@ -50,7 +50,17 @@ main =
                 Right blogpost -> do
                   makeItem (path, feedConfig blogpost)
                     >>= saveSnapshot pathAndFeedConfirguration
-                  makeItem $ renderBS $ html blogpost
+                  makeHtml $ html blogpost
+
+makeHtml :: Html () -> Compiler (Item String)
+makeHtml html = do
+  unsafeCompiler
+    ( readProcess
+        "npx"
+        ["js-beautify", "--type=html", "-"]
+        (Text.unpack $ renderText html)
+    )
+    >>= makeItem
 
 interpret filepath expr as =
   Hint.runInterpreter $ do
