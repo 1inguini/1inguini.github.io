@@ -13,5 +13,9 @@ main = undefined
 index :: IndexData -> Html ()
 index indexData = template "linguiniのブログ" $ do
   section_ $ do
+    h1_ "外部リンク"
+    linkList $ externals indexData
+  
+  section_ $ do
     h1_ "記事"
     linkList $ articles indexData

@@ -13,29 +13,31 @@ import qualified Language.Haskell.Interpreter as Hint
 import Lucid
 import System.IO (hPutStrLn, stderr)
 import System.Process (readProcess)
-import Template (BlogPost (..), IndexData (..), Link)
+import Template (BlogPost (..), IndexData (..), Link, https)
 
 postDir = "posts/*/*"
 
 redirectsDir :: IsString s => s
 redirectsDir = "redirects"
 
-redirectLinks :: [(Link, FilePath)]
-redirectLinks =
-  let redirection = ((redirectsDir <> "/") <>) . (<> ".html")
-   in [ ((redirection "amazon_wishlist", "干し芋"), "https://www.amazon.co.jp/hz/wishlist/dl/invite/ghyjmBH?ref_=wl_share")
-      ]
+defaultIndexData :: IndexData
+defaultIndexData =
+  IndexData
+    { externals =
+        [ (https "twitter.com/1inguini", "Twitter"),
+          (https "twitter.com/1inguini", "Twitterの飲精アカウント"),
+          (https "github.com/1inguini", "GitHub"),
+          (https "linguini.booth.pm", "BOOTH"),
+          (https "www.amazon.co.jp/hz/wishlist/dl/invite/ghyjmBH?ref_=wl_share", "干し芋"),
+          (https "vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
+        ],
+      articles = []
+    }
 
 main :: IO ()
 main =
   hakyllWith defaultConfiguration {destinationDirectory = "docs"} $
     let pathAndFeedConfirguration = "Path&FeedConfiguration"
-        redirects :: [(Identifier, String)]
-        redirects =
-          ( \((path, _), url) ->
-              (fromFilePath path, url)
-          )
-            <$> redirectLinks
      in do
           create ["index.html"] $ do
             route idRoute
@@ -52,8 +54,7 @@ main =
                               Compiler [Item (FilePath, FeedConfiguration)]
                           )
                   makeHtml $
-                    index
-                      IndexData {articles = articles}
+                    index defaultIndexData {articles = articles}
 
           match postDir $ do
             route $ setExtension "html"
@@ -69,8 +70,6 @@ main =
                   makeItem (path, feedConfig blogpost)
                     >>= saveSnapshot pathAndFeedConfirguration
                   makeHtml $ html blogpost
-
-          createRedirects redirects
 
 makeHtml :: Html () -> Compiler (Item String)
 makeHtml html =

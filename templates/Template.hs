@@ -10,6 +10,7 @@ module Template
     BlogPost (..),
     Link,
     IndexData (..),
+    https,
     defaultFeedConfig,
     mkBlogPost,
     template,
@@ -21,13 +22,16 @@ module Template
 where
 
 import Data.Binary
+import Data.String (IsString)
 import Data.Text (Text, pack)
 import Data.Typeable
 import GHC.Generics (Generic)
 import Hakyll (FeedConfiguration (..))
 import Lucid
 
-deriving instance Typeable FeedConfiguration
+https :: (IsString s, Semigroup s) => s -> s
+https = (<>) "https://"
+
 
 deriving instance Generic FeedConfiguration
 
@@ -75,8 +79,10 @@ template title content = doctypehtml_ $ do
 
 type Link = (FilePath, String)
 
-newtype IndexData = IndexData
-  {articles :: [Link]}
+data IndexData = IndexData
+  { externals :: [Link],
+    articles :: [Link]
+  }
   deriving (Show, Eq)
 
 link :: Text -> Html () -> Html ()
