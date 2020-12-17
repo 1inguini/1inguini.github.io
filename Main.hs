@@ -15,42 +15,42 @@ import Template (BlogPost (..))
 posts = "posts/*/*"
 
 main :: IO ()
-main = hakyllWith defaultConfiguration {destinationDirectory = "docs"} $ do
-  create ["index.html"] $ do
-    route idRoute
-    compile $ do
-      maybeIndex <- unsafeCompiler $ interpret "pages/Index.hs" "index" (Hint.as :: [(FilePath, String)] -> Html ())
-      case maybeIndex of
-        Left e -> do
-          unsafeCompiler $ hPutStrLn stderr $ displayException e
-          fail "interpret"
-        Right index -> do
-          filepaths <- loadAllSnapshots posts "FilePath"
-          feeds <- loadAllSnapshots posts "FeedConfiguration"
-          makeItem $
-            renderBS $
-              index $
-                zipWith
-                  (curry $ itemBody *** (itemBody >>> feedTitle))
-                  filepaths
-                  feeds
+main =
+  hakyllWith defaultConfiguration {destinationDirectory = "docs"} $
+    let pathAndFeedConfirguration = "Path&FeedConfiguration"
+     in do
+          create ["index.html"] $ do
+            route idRoute
+            compile $ do
+              maybeIndex <- unsafeCompiler $ interpret "pages/Index.hs" "index" (Hint.as :: [(FilePath, String)] -> Html ())
+              case maybeIndex of
+                Left e -> do
+                  unsafeCompiler $ hPutStrLn stderr $ displayException e
+                  fail "interpret"
+                Right index -> do
+                  links <-
+                    fmap (itemBody >>> second feedTitle)
+                      <$> ( loadAllSnapshots posts pathAndFeedConfirguration ::
+                              Compiler [Item (FilePath, FeedConfiguration)]
+                          )
+                  makeItem $
+                    renderBS $
+                      index links
 
-  match posts $ do
-    route $ setExtension "html"
-    compile $ do
-      src <- getResourceFilePath
-      (Just path) <- getRoute =<< getUnderlying
-      result <- unsafeCompiler $ interpret src "post" (Hint.as :: BlogPost)
-      case result of
-        Left e -> do
-          unsafeCompiler $ hPutStrLn stderr $ displayException e
-          fail "interpret"
-        Right blogpost -> do
-          makeItem (feedConfig blogpost)
-            >>= saveSnapshot "FeedConfiguration"
-          makeItem path
-            >>= saveSnapshot "FilePath"
-          makeItem $ renderBS $ html blogpost
+          match posts $ do
+            route $ setExtension "html"
+            compile $ do
+              src <- getResourceFilePath
+              (Just path) <- getRoute =<< getUnderlying
+              result <- unsafeCompiler $ interpret src "post" (Hint.as :: BlogPost)
+              case result of
+                Left e -> do
+                  unsafeCompiler $ hPutStrLn stderr $ displayException e
+                  fail "interpret"
+                Right blogpost -> do
+                  makeItem (path, feedConfig blogpost)
+                    >>= saveSnapshot pathAndFeedConfirguration
+                  makeItem $ renderBS $ html blogpost
 
 interpret filepath expr as =
   Hint.runInterpreter $ do

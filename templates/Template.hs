@@ -62,6 +62,7 @@ template title content = doctypehtml_ $ do
     meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
     meta_ [httpEquiv_ "Content-Style-Type", content_ "text/css"]
     meta_ [httpEquiv_ "Content-Script-Type", content_ "text/javascript"]
+    link_ [rel_ "icon", href_ "https://avatars0.githubusercontent.com/u/42938754"]
     -- link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"]
     link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css"]
     body_ $ do
