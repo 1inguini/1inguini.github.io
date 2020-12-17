@@ -75,10 +75,8 @@ template title content = doctypehtml_ $ do
 
 type Link = (FilePath, String)
 
-data IndexData = IndexData
-  { articles :: [Link],
-    redirects :: [Link]
-  }
+newtype IndexData = IndexData
+  {articles :: [Link]}
   deriving (Show, Eq)
 
 link :: Text -> Html () -> Html ()

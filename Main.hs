@@ -53,10 +53,7 @@ main =
                           )
                   makeHtml $
                     index
-                      IndexData
-                        { articles = articles,
-                          redirects = fst <$> redirectLinks
-                        }
+                      IndexData {articles = articles}
 
           match postDir $ do
             route $ setExtension "html"

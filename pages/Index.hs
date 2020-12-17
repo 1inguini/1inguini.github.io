@@ -15,6 +15,3 @@ index indexData = template "linguiniのブログ" $ do
   section_ $ do
     h1_ "記事"
     linkList $ articles indexData
-  section_ $ do
-    h1_ "リダイレクト"
-    linkList $ redirects indexData
