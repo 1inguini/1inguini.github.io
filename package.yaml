@@ -19,16 +19,18 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/1inguini/1inguini.github.io#readme>
 
-dependencies:
+dependencies: 
 - base >= 4.7 && < 5
 - hakyll
 - lucid
+- hint
 - text
-  
+- bytestring
+- binary
+
 library:
   source-dirs:
   - templates
-  - posts/2020/12
 
 executables:
   site:
@@ -44,6 +46,15 @@ executables:
     - 1inguini-github-io
 
 tests:
+  posts: # only for haskell-languag-eserver to work for posts
+    main:                Index.hs
+    source-dirs:
+    - .
+    #- posts
+    - pages
+    dependencies:
+    - 1inguini-github-io
+
   1inguini-github-io-test:
     main:                Spec.hs
     source-dirs:         test
@@ -53,4 +64,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - 1inguini-github-io
-    
+

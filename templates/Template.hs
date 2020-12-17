@@ -1,8 +1,15 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | basic templates
 module Template
-  ( module Lucid,
+  ( module Hakyll,
+    module Lucid,
+    BlogPost (..),
+    defaultFeedConfig,
+    mkBlogPost,
     template,
     link,
     selfLink,
@@ -10,9 +17,40 @@ module Template
   )
 where
 
-import Data.String
-import Data.Text (Text)
+import Data.Binary
+import Data.Text (Text, pack)
+import Data.Typeable
+import GHC.Generics (Generic)
+import Hakyll (FeedConfiguration (..))
 import Lucid
+
+deriving instance Typeable FeedConfiguration
+deriving instance Generic FeedConfiguration
+instance Binary FeedConfiguration
+
+data BlogPost = BlogPost
+  { feedConfig :: FeedConfiguration,
+    html :: Html ()
+  }
+  deriving (Show, Typeable, Generic)
+
+defaultFeedConfig :: FeedConfiguration
+defaultFeedConfig =
+  FeedConfiguration
+    { feedTitle = "ここにタイトルが入る",
+      feedDescription = "ここに記事の説明が入る",
+      feedAuthorName = "linguini",
+      feedAuthorEmail = "9647142@gmail.com",
+      feedRoot = "https://1inguini.github.io"
+    }
+
+mkBlogPost :: FeedConfiguration -> Html () -> BlogPost
+mkBlogPost feedConfig =
+  let title = pack $ feedTitle feedConfig
+   in BlogPost feedConfig
+        . template title
+        . article_
+        . (h1_ (toHtmlRaw title) <>)
 
 template :: Text -> Html () -> Html ()
 template title content = doctypehtml_ $ do
