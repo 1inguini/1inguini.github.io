@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | posts of 2020/12/16
+-- | post of 2020/12/16
 module Main where
 
 import Template
 
 main = undefined
 
-post :: BlogPost
+-- post :: BlogPost
 post = mkBlogPost
   defaultFeedConfig
     { feedTitle = "ブログ準備中その0",

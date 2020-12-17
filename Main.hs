@@ -5,6 +5,7 @@ module Main where
 import Control.Arrow
 import Control.Exception (Exception (displayException))
 import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Functor.Identity
 import Data.String (IsString)
 import qualified Data.Text.Lazy as Text
 import Hakyll
@@ -15,7 +16,11 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (readProcess)
 import Template (BlogPost (..), IndexData (..), Link, https)
 
-postDir = "posts/*/*"
+postsDir = "posts/*/"
+
+postsHaskell = fromGlob $ postsDir <> "*.hs"
+
+postsHtml = fromGlob $ postsDir <> "*.html"
 
 redirectsDir :: IsString s => s
 redirectsDir = "redirects"
@@ -52,18 +57,18 @@ main =
                 Right index -> do
                   articles <-
                     fmap (itemBody >>> second feedTitle)
-                      <$> ( loadAllSnapshots postDir pathAndFeedConfirguration ::
+                      <$> ( loadAllSnapshots postsHaskell pathAndFeedConfirguration ::
                               Compiler [Item (FilePath, FeedConfiguration)]
                           )
                   makeHtml $
                     index defaultIndexData {articles = articles}
 
-          match postDir $ do
+          match postsHaskell $ do
             route $ setExtension "html"
             compile $ do
               src <- getResourceFilePath
               (Just path) <- getRoute =<< getUnderlying
-              result <- unsafeCompiler $ interpret src "post" (Hint.as :: BlogPost)
+              result <- unsafeCompiler $ interpret src "post" (Hint.as :: BlogPost Identity)
               case result of
                 Left e -> do
                   unsafeCompiler $ hPutStrLn stderr $ displayException e
@@ -72,6 +77,11 @@ main =
                   makeItem (path, feedConfig blogpost)
                     >>= saveSnapshot pathAndFeedConfirguration
                   makeHtml $ html blogpost
+
+          match postsHtml $ do
+            route idRoute
+            compile getResourceBody
+            
 
 makeHtml :: Html () -> Compiler (Item String)
 makeHtml html =
