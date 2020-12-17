@@ -14,8 +14,8 @@ index :: IndexData -> Html ()
 index indexData = template "linguiniのブログ" $ do
   section_ $ do
     h1_ "外部リンク"
-    linkList $ externals indexData
-  
+    linkList newTabAttr $ externals indexData
+
   section_ $ do
     h1_ "記事"
-    linkList $ articles indexData
+    linkList [] $ articles indexData

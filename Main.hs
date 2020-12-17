@@ -24,13 +24,15 @@ defaultIndexData :: IndexData
 defaultIndexData =
   IndexData
     { externals =
-        [ (https "twitter.com/1inguini", "Twitter"),
-          (https "twitter.com/1inguini1tasita", "Twitterの飲精アカウント"),
-          (https "github.com/1inguini", "GitHub"),
-          (https "linguini.booth.pm", "BOOTH"),
-          (https "www.amazon.co.jp/hz/wishlist/dl/invite/ghyjmBH?ref_=wl_share", "干し芋"),
-          (https "vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
-        ],
+        fmap
+          (first https)
+          [ ("twitter.com/1inguini", "Twitter"),
+            ("twitter.com/1inguini1tasita", "Twitterの飲精アカウント"),
+            ("github.com/1inguini", "GitHub"),
+            ("linguini.booth.pm", "BOOTH"),
+            ("www.amazon.co.jp/hz/wishlist/dl/invite/ieqolZ4?ref_=wl_share", "干し芋"),
+            ("vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
+          ],
       articles = []
     }
 
