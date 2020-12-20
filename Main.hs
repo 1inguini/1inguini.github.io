@@ -1,20 +1,20 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main where
 
-import Control.Arrow
-import Control.Exception (Exception (displayException))
-import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.Functor.Identity
-import Data.String (IsString)
-import qualified Data.Text.Lazy as Text
 import Hakyll
 import Language.Haskell.Interpreter (OptionVal ((:=)))
 import qualified Language.Haskell.Interpreter as Hint
-import Lucid
-import System.IO (hPutStrLn, stderr)
-import System.Process (readProcess)
-import Template (BlogPost (..), IndexData (..), Link, https)
+import Lucid (Html, renderBS)
+import RIO
+import qualified RIO.ByteString.Lazy as BL
+import qualified RIO.Char as C
+import qualified RIO.List as L
+import qualified RIO.Process as Proc (byteStringInput, readProcess_, setStdin)
+import qualified RIO.Text.Lazy as Text
+import System.IO (hPutStrLn)
+import Template
 
 postsDir = "posts/*/"
 
@@ -41,62 +41,112 @@ defaultIndexData =
       articles = []
     }
 
+-- camelToSnake ::
+camelToSnake :: String -> String
+camelToSnake (c : cs) =
+  let upperToUnderscore c
+        | C.isUpper c = ('_' :) . (C.toLower c :)
+        | otherwise = (c :)
+   in C.toLower c : foldr upperToUnderscore "" cs
+
+feedContext :: Webpage fromHakyll -> Context String
+feedContext page =
+  let fromMaybeEmptyModifiedDates safeGetElement =
+        fromMaybe "Error: modifiedDates empty" $
+          safeGetElement $ view modifiedDatesL page
+   in mconcat
+        [ constField "title" $ view titleL page,
+          constField "description" $ view descriptionL page,
+          constField "published" $
+            fromMaybeEmptyModifiedDates L.headMaybe,
+          constField "updated" $
+            fromMaybeEmptyModifiedDates L.lastMaybe,
+          -- constField "body" $ body page,
+          defaultContext
+        ]
+
+-- rss =
+--   hakyll $ do
+--     create ["1900-01-01.html"] $ do
+--       route idRoute
+--       compile $ makeItem ("test index.html" :: String)
+--     create ["rss"] $ do
+--       route idRoute
+--       compile $ do
+--         item <- makeItem "hello"
+--         index <- load "1900-01-01.html"
+--         renderRss defaultFeedConfig (defaultContext <> constField "description" "hoge") [index]
+
 main :: IO ()
 main =
   hakyllWith defaultConfiguration {destinationDirectory = "docs"} $
-    let pathAndFeedConfirguration = "Path&FeedConfiguration"
+    let pathAndWebpageData = "#0"
      in do
-          create ["index.html"] $ do
-            route idRoute
+          match "pages/Index.hs" $ do
+            route $ constRoute "index.html"
             compile $ do
-              maybeIndex <- unsafeCompiler $ interpret "pages/Index.hs" "index" (Hint.as :: IndexData -> Html ())
-              case maybeIndex of
-                Left e -> do
-                  unsafeCompiler $ hPutStrLn stderr $ displayException e
-                  fail "interpret"
-                Right index -> do
-                  articles <-
-                    fmap (itemBody >>> second feedTitle)
-                      <$> ( loadAllSnapshots postsHaskell pathAndFeedConfirguration ::
-                              Compiler [Item (FilePath, FeedConfiguration)]
-                          )
-                  makeHtml $
-                    index defaultIndexData {articles = articles}
+              articles <-
+                fmap (itemBody >>> second feedTitle)
+                  <$> ( loadAllSnapshots postsHaskell pathAndWebpageData ::
+                          Compiler [Item (FilePath, FeedConfiguration)]
+                      )
+              index <- interpret "index" (Hint.as :: Webpage IndexData)
+              webpageCompiler
+                FromHakyll
+                  { fileContents = mempty,
+                    pageTypeSpecific = defaultIndexData {articles = articles}
+                  }
+                $ body index
 
           match postsHaskell $ do
             route $ setExtension "html"
             compile $ do
-              src <- getResourceFilePath
               (Just path) <- getRoute =<< getUnderlying
-              result <- unsafeCompiler $ interpret src "post" (Hint.as :: BlogPost Identity)
-              case result of
-                Left e -> do
-                  unsafeCompiler $ hPutStrLn stderr $ displayException e
-                  fail "interpret"
-                Right blogpost -> do
-                  makeItem (path, feedConfig blogpost)
-                    >>= saveSnapshot pathAndFeedConfirguration
-                  makeHtml $ html blogpost
+              blogPost <- interpret "post" (Hint.as :: Webpage ArticleData)
+              makeItem (path, webpageData blogPost)
+                >>= saveSnapshot pathAndWebpageData
+              requestedFiles <-
+                mapM
+                  (loadBody . fromFilePath :: FilePath -> Compiler String)
+                  $ view hasRequestL blogPost
+              webpageCompiler
+                FromHakyll
+                  { fileContents = requestedFiles,
+                    pageTypeSpecific = ArticleData
+                  }
+                $ body blogPost
 
-          match postsHtml $ do
+          match "**/*.html" $ do
             route idRoute
             compile getResourceBody
-            
 
-makeHtml :: Html () -> Compiler (Item String)
-makeHtml html =
+webpageCompiler :: FromHakyll fromHakyll -> WebpageBody fromHakyll () -> Compiler (Item BL.ByteString)
+webpageCompiler envFromHakyll webpageBody =
   unsafeCompiler
-    ( readProcess
-        "npx"
-        ["js-beautify", "--type=html", "-"]
-        (Text.unpack $ renderText html)
+    ( Proc.readProcess_ $
+        Proc.setStdin
+          ( Proc.byteStringInput $
+              renderWebpageBody
+                (defaultWebpageEnv envFromHakyll)
+                webpageBody
+          )
+          "npx js-beautify --type=html -"
     )
-    >>= makeItem
+    >>= (fst >>> makeItem)
 
-interpret filepath expr as =
-  Hint.runInterpreter $ do
-    Hint.loadModules [filepath]
-    Hint.setTopLevelModules ["Main"]
-    Hint.setImports ["Prelude", "Lucid", "Template"]
-    Hint.setImportsQ [("Data.ByteString.Lazy", Just "BS")]
-    Hint.interpret expr as
+-- may fail
+interpret :: Typeable a => String -> a -> Compiler a
+interpret code as = do
+  filePath <- getResourceFilePath
+  eitherResult <- unsafeCompiler $ interpret' filePath code as
+  case eitherResult of
+    Left e -> fail $ displayException e
+    Right result -> pure result
+  where
+    interpret' :: Typeable a => FilePath -> String -> a -> IO (Either Hint.InterpreterError a)
+    interpret' filepath expr as =
+      Hint.runInterpreter $ do
+        Hint.loadModules [filepath]
+        Hint.setTopLevelModules ["Main"]
+        Hint.setImports ["RIO", "Template"]
+        Hint.interpret expr as

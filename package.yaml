@@ -20,18 +20,31 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/1inguini/1inguini.github.io#readme>
 
 dependencies: 
-- base >= 4.7 && < 5
+- name: base
+  version: ">= 4.7 && < 5"
+  mixin:
+  - hiding (Prelude)
+- name: rio
+  # mixin:
+  # - hiding (RIO)
+  # - (RIO as Prelude)
 - hakyll
 - lucid
 - hint
-- text
-- bytestring
 - binary
-- process
+
+default-extensions:
+- NoImplicitPrelude
+- OverloadedStrings
+- GeneralizedNewtypeDeriving
+# - ExistentialQuantification
 
 library:
   source-dirs:
   - templates
+  when:
+  - condition: false
+    other-modules: Paths_1inguini_github_io
 
 executables:
   site:
@@ -45,6 +58,10 @@ executables:
     # - -with-rtsopts=-N
     dependencies:
     - 1inguini-github-io
+    when:
+    - condition: false
+      other-modules: Paths_1inguini_github_io
+    
 
 tests:
   posts: # only for haskell-languag-eserver to work for posts
@@ -53,8 +70,12 @@ tests:
     - .
     #- posts
     - pages
-    dependencies:
-    - 1inguini-github-io
+    - templates
+    # dependencies:
+    # - 1inguini-github-io
+    when:
+    - condition: false
+      other-modules: Paths_1inguini_github_io
 
   1inguini-github-io-test:
     main:                Spec.hs
@@ -65,4 +86,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - 1inguini-github-io
+    when:
+    - condition: false
+      other-modules: Paths_1inguini_github_io
 

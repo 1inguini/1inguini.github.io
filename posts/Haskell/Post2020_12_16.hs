@@ -17,11 +17,11 @@ post = mkBlogPost
     section_ $ do
       h2_ "きっかけ"
       p_ $
-        "ことの発端は" <> link "https://linguini.booth.pm/items/2496957" "リア-アリス向けロングコート" <> "のライセンスを公開するために作った" <> githubLink "1inguini/Licences" <> "をみていたときに、「" <> obviousLink "https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" <> "を公開してるのに" <> obviousLink "https://1inguini.github.io/Licences" <> "に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。"
+        "ことの発端は" <> aHref "https://linguini.booth.pm/items/2496957" "リア-アリス向けロングコート" <> "のライセンスを公開するために作った" <> aHrefGitHub "1inguini/Licences" <> "をみていたときに、「" <> aHrefEcho "https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" <> "を公開してるのに" <> aHrefEcho "https://1inguini.github.io/Licences" <> "に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。"
       p_ $
-        "index.htmlを書いているうちに(vscodeの補完が優秀だったこともあり)html書くの楽しいなと思ったものの" <> obviousLink "https://1inguini.github.io/Licences" <> "に書く内容は大して無いのですぐに物足りなくなったわけで。"
+        "index.htmlを書いているうちに(vscodeの補完が優秀だったこともあり)html書くの楽しいなと思ったものの" <> aHrefEcho "https://1inguini.github.io/Licences" <> "に書く内容は大して無いのですぐに物足りなくなったわけで。"
       p_ $
-        "気付いたら" <> link "http://jaspervdj.be/hakyll" "Hakyll" <> "と" <> link "https://hackage.haskell.org/package/lucid" "Lucid" <> "でブログを書こうとしていました。"
+        "気付いたら" <> aHref "http://jaspervdj.be/hakyll" "Hakyll" <> "と" <> aHref "https://hackage.haskell.org/package/lucid" "Lucid" <> "でブログを書こうとしていました。"
 
     section_ $ do
       h2_ "今までの進捗"
