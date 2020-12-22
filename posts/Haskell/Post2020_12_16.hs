@@ -8,30 +8,39 @@ import Template
 main = undefined
 
 -- post :: BlogPost
-post = mkBlogPost
-  defaultFeedConfig
-    { feedTitle = "ブログ準備中その0",
-      feedDescription = "HakyllとLucidでブログ書き始めたよ"
-    }
-  $ do
-    section_ $ do
-      h2_ "きっかけ"
-      p_ $
-        "ことの発端は" <> aHref "https://linguini.booth.pm/items/2496957" "リア-アリス向けロングコート" <> "のライセンスを公開するために作った" <> aHrefGitHub "1inguini/Licences" <> "をみていたときに、「" <> aHrefEcho "https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" <> "を公開してるのに" <> aHrefEcho "https://1inguini.github.io/Licences" <> "に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。"
-      p_ $
-        "index.htmlを書いているうちに(vscodeの補完が優秀だったこともあり)html書くの楽しいなと思ったものの" <> aHrefEcho "https://1inguini.github.io/Licences" <> "に書く内容は大して無いのですぐに物足りなくなったわけで。"
-      p_ $
-        "気付いたら" <> aHref "http://jaspervdj.be/hakyll" "Hakyll" <> "と" <> aHref "https://hackage.haskell.org/package/lucid" "Lucid" <> "でブログを書こうとしていました。"
+post :: Webpage ArticleData
+post =
+  webpageCommon . articleCommon
+    . set titleL "ブログ準備中その0"
+    . set descriptionL "HakyllとLucidでブログ書き始めたよ"
+    -- . set tagsL ["Hakyll, ""Website"]
+    . set modifiedDatesL ["2020-12-16"]
+    . set webpageBodyL webpageBody
+    $ theDefault
 
-    section_ $ do
-      h2_ "今までの進捗"
-      p_ $
-        "Hakyllは生成したファイルを_site/以下に吐くのでgitのルートディレクトリか/docディレクトリかにサイトがあることを期待するGitHub Pagesに使うには少し工夫が必要でした。" <> "何したかって言いますとgh-pagesブランチを作ってそれを" <> code_ "git submodule add -b gh-pages https://github.com/1inguini/1inguini.github.io.git _site" <> "しました。" <> "「しました」ってさらっと書いてますが" <> code_ "stack run rebuild" <> "して.gitディレクトリを消し飛ばしたり" <> code_ "git reset --hard" <> code_ "git push -f" <> "しまくったりと(良い子は真似しないでね!)すんなりはできませんでした(もっとgitと仲良くなろうね)。" <> "ところで今見たらHakyll側で割と簡単に出力先を変えれるっぽいな?"
+webpageBody :: WebpageBody ArticleData ()
+webpageBody = do
+  section "きっかけ" $ do
+    paragraph $
+      "ことの発端は" <> hyperlink "https://linguini.booth.pm/items/2496957" "リア-アリス向けロングコート" <> "のライセンスを公開するために作った" <> hyperlinkGitHub "1inguini/Licences" <> "をみていたときに、「" <> hyperlinkEcho "https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" <> "を公開してるのに" <> hyperlinkEcho "https://1inguini.github.io/Licences" <> "に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。"
+    paragraph $
+      "index.htmlを書いているうちに(vscodeの補完が優秀だったこともあり)html書くの楽しいなと思ったものの" <> hyperlinkEcho "https://1inguini.github.io/Licences" <> "に書く内容は大して無いのですぐに物足りなくなったわけで。"
+    paragraph $
+      "気付いたら" <> hyperlink "http://jaspervdj.be/hakyll" "Hakyll" <> "と" <> hyperlink "https://hackage.haskell.org/package/lucid" "Lucid" <> "でブログを書こうとしていました。" ::
+      WebpageBody ArticleData ()
 
-      p_ $
-        "というわけで早速" <> code_ "main = hakyll $ do" <> "を" <> code_ "hakyllWith defaultConfiguration { destinationDirectory = \"doc\" } $ do" <> "に置き換えました。いやー快適。やったね。"
+  section "今までの進捗" $ do
+    section "header4" $ section "header5" $ section "header6" $ section "header7" $ section "header5" $ section "header6" $ section "header7" "end" :: WebpageBody ArticleData ()
 
-    section_ $ do
-      h2_ "追記"
-      p_ $
-        "docじゃなくてdocsだったわウケ。「No " <> code_ "/docs" <> " folder was found to build GitHub Pages. Check the source setting for this repository.」って怒られちゃった。"
+    paragraph $
+      "Hakyllは生成したファイルを_site/以下に吐くのでgitのルートディレクトリか/docディレクトリかにサイトがあることを期待するGitHub Pagesに使うには少し工夫が必要でした。" <> "何したかって言いますとgh-pagesブランチを作ってそれを" <> code "git submodule add -b gh-pages https://github.com/1inguini/1inguini.github.io.git _site" <> "しました。" <> "「しました」ってさらっと書いてますが" <> code "stack run rebuild" <> "して.gitディレクトリを消し飛ばしたり" <> code "git reset --hard" <> code "git push -f" <> "しまくったりと(良い子は真似しないでね!)すんなりはできませんでした(もっとgitと仲良くなろうね)。"
+        <> "ところで今見たらHakyll側で割と簡単に出力先を変えれるっぽいな?" ::
+      WebpageBody ArticleData ()
+
+    paragraph $
+      "というわけで早速" <> code "main = hakyll $ do" <> "を" <> code "hakyllWith defaultConfiguration { destinationDirectory = \"doc\" } $ do" <> "に置き換えました。いやー快適。やったね。" ::
+      WebpageBody ArticleData ()
+
+  section "追記" $ do
+    paragraph $
+      "docじゃなくてdocsだったわウケ。「No " <> code "/docs" <> " folder was found to build GitHub Pages. Check the source setting for this repository.」って怒られちゃった。"

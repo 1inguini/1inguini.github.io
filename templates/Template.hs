@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -6,45 +8,43 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | basic templates
 module Template
-  ( module RIO,
-    module Hakyll,
-    module Lucid,
+  ( module Hakyll,
     module Data.Functor.Identity,
     HasAnnotationIndex (..),
-    HasDefault (..),
     HasDescription (..),
     HasFileContentsRequest (..),
     HasFileContentsResponse (..),
-    -- HasFileContentsRequestResponse (..),
     HasHeaderLevel (..),
     HasModifiedDates (..),
+    HasTags (..),
     HasTitle (..),
-    HasWebpageEnvFromHakyll (..),
-    ArticleData (..),
-    FromHakyll (..),
-    IndexData (..),
+    HasWebpageBody (..),
     Webpage (..),
     WebpageBody (..),
     WebpageEnv (..),
     Link (..),
-    aHref,
-    aHrefEcho,
-    aHrefGitHub,
-    aHrefInternal,
-    aHrefList,
+    hyperlink,
+    hyperlinkEcho,
+    hyperlinkGitHub,
+    hyperlinkInternal,
+    hyperlinkList,
     articleCommon,
+    code,
     defaultFeedConfig,
-    defaultWebpageEnv,
-    h_,
+    mkDefaultWebpageEnv,
+    header,
     https,
     link_,
     meta_,
     newTabAttr,
+    paragraph,
     renderWebpageBody,
+    section,
     toWebpageBody,
     toWebpageBodyRaw,
     webpageCommon,
@@ -55,50 +55,89 @@ where
 
 import Data.Binary
 import Data.Functor.Identity
+import Data.Generics.Product
 import Data.Kind (Constraint)
 import Data.String (IsString)
 import Data.Typeable
-import GHC.Generics (Generic)
+import GHC.Base (Symbol)
 import Hakyll (FeedConfiguration (..))
 import Lucid hiding (doctypehtml_, link_, meta_, nk_)
 import qualified Lucid (doctypehtml_, link_, meta_)
 import qualified Lucid.Base as Lucid (makeAttribute)
-import RIO hiding (for_)
 import qualified RIO.ByteString.Lazy as BL
 import qualified RIO.List as L
 import RIO.State
 import qualified RIO.Text as T
 import RIO.Time
 
-class HasDefault a where
-  theDefault :: a
-
-data WebpageData = WebpageData
-  { title :: String,
-    description :: String,
-    modifiedDates :: [String] -- older first iso8601
-  }
-  deriving (Show, Generic)
-
-instance Binary WebpageData
-
 class HasTitle a where
   titleL :: Lens' a String
+  default titleL :: HasField' "title" a String => Lens' a String
+  titleL = field' @"title"
 
 class HasDescription a where
   descriptionL :: Lens' a String
+  default descriptionL :: HasField' "description" a String => Lens' a String
+  descriptionL = field' @"description"
 
 class HasModifiedDates a where
   modifiedDatesL :: Lens' a [String]
+  default modifiedDatesL :: HasField' "modifiedDates" a [String] => Lens' a [String]
+  modifiedDatesL = field' @"modifiedDates"
 
-instance HasTitle WebpageData where
-  titleL = lens description $ \s a -> s {title = a}
+class HasWebpageBody (pageType :: WebpageType) a where
+  webpageBodyL :: Lens' a (WebpageBody pageType ())
+  default webpageBodyL :: HasField' "webpageBody" a (WebpageBody pageType ()) => Lens' a (WebpageBody pageType ())
+  webpageBodyL = field' @"webpageBody"
 
-instance HasDescription WebpageData where
-  descriptionL = lens description $ \s a -> s {description = a}
+class HasWebpageData a where
+  webpageDataL :: Lens' a (ToWebpage x)
+  default webpageDataL :: HasField' "webpageData" a (ToWebpage x) => Lens' a (ToWebpage x)
+  webpageDataL = field' @"webpageData"
 
-instance HasModifiedDates WebpageData where
-  modifiedDatesL = lens modifiedDates $ \s a -> s {modifiedDates = a}
+class HasHeaderLevel env where
+  headerLevelL :: Lens' env Int
+  default headerLevelL :: HasField' "headerLevel" env Int => Lens' env Int
+  headerLevelL = field' @"headerLevel"
+
+class HasAnnotationIndex env where
+  annotationIndexL :: Lens' env Int
+  default annotationIndexL :: HasField' "annotationIndex" env Int => Lens' env Int
+  annotationIndexL = field' @"annotationIndex"
+
+class HasFileContentsRequest hasRequest where
+  fileRequestsL :: Lens' hasRequest [FilePath]
+  default fileRequestsL :: HasField' "fileRequests" hasRequest [FilePath] => Lens' hasRequest [FilePath]
+  fileRequestsL = field' @"fileRequests"
+
+class HasFileContentsResponse hasResponse where
+  fileContentsL :: Lens' hasResponse [String]
+  default fileContentsL :: HasField' "fileContents" hasResponse [String] => Lens' hasResponse [String]
+  fileContentsL = field' @"fileContents"
+
+class HasTags a where
+  tagsL :: Lens' a [String]
+  default tagsL :: HasField' "tags" a [String] => Lens' a [String]
+  tagsL = field' @"tags"
+
+data WebpageType
+  = ArticlePage
+  | IndexPage
+  deriving (Eq, Show, Generic)
+
+data Webpage (pageType :: WebpageType) = Webpage
+  { webpageData :: FromWebpage pageType,
+    webpageBody :: WebpageBody pageType ()
+  }
+  deriving (Generic)
+
+instance HasTitle (Webpage ArticlePage) where
+  titleL = field' @"webpageData" % titleL
+
+instance HasTitle (Webpage IndexPage) where
+  titleL = field' @"webpageData" % titleL
+
+instance HasWebpageBody pageType (Webpage pageType)
 
 -- -- data ExampleFileContentRequests a = Example {codeSnippet0, codeSnippet1 :: a} deriving (Functor)といった型を定義してExampleFileContentRequests FilePathで内容がほしいファイルを指定、HakyllがExampleFileContentRequests String(このStringはファイルの中身)といった形で返してくれることを期待する
 -- -- Functional DependenciesがないとfileContentRequestsL(もしくはfileContentsL)だけ見たときにHasFileContentsRequestResponse AProtocol ARequest AResponseの可能性だけでなくHasFileContentsRequestResponse AProtocol ARequest BOtherResponseSuchAsIntの可能性も出てきてしまうのでエラーが出る、これブログに書こう
@@ -110,105 +149,139 @@ instance HasModifiedDates WebpageData where
 --   fileContentsRequestL :: Lens' hasRequests (protocol FilePath)
 --   fileContentsL :: Lens' hasResposes (protocol String)
 
-class HasFileContentsRequest hasRequest where
-  hasRequestL :: Lens' hasRequest (Vector FilePath)
+newtype WebpageBody pageType a = WebpageBody {runWebpageBody :: HtmlT (Reader (WebpageEnv pageType)) a}
+  deriving (Generic, Functor, Applicative, Monad, MonadReader (WebpageEnv pageType))
 
-class HasFileContentsResponse hasResponse where
-  hasResponseL :: Lens' hasResponse (Vector String)
+deriving instance Semigroup (WebpageBody pageType ())
 
-data Webpage pageTypeSpecific = Webpage
-  { webpageData :: WebpageData,
-    fileContentsRequest :: Vector FilePath,
-    body :: WebpageBody pageTypeSpecific ()
-  }
+instance Default (WebpageEnv pageType) => Show (WebpageBody pageType ()) where
+  show = show . renderWebpageBody def
 
-instance HasFileContentsRequest (Webpage pageTypeSpecific) where
-  hasRequestL = lens fileContentsRequest $
-    \s a -> s {fileContentsRequest = a}
+instance Default (Webpage ArticlePage) where
+  def =
+    Webpage
+      { webpageData = def,
+        webpageBody = WebpageBody mempty
+      }
 
-class HasWebpageData a where
-  webpageDataL :: Lens' a WebpageData
+instance Default (Webpage IndexPage) where
+  def =
+    Webpage
+      { webpageData = def,
+        webpageBody = WebpageBody mempty
+      }
 
-instance HasWebpageData (Webpage pageTypeSpecific) where
-  webpageDataL = lens webpageData $ \s a -> s {webpageData = a}
-
-class HasWebpageBody pageTypeSpecific a where
-  webpageBodyL :: Lens' a (WebpageBody pageTypeSpecific ())
-
-instance HasWebpageBody pageTypeSpecific (Webpage pageTypeSpecific) where
-  webpageBodyL = lens body $ \s a -> s {body = a}
-
-instance HasTitle (Webpage pageTypeSpecific) where
-  titleL = lens (webpageData >>> view titleL) $
-    \s a -> s {webpageData = set titleL a (webpageData s)}
-
-instance HasDescription (Webpage pageTypeSpecific) where
-  descriptionL = lens (webpageData >>> view descriptionL) $
-    \s a -> s {webpageData = set descriptionL a (webpageData s)}
-
-instance HasModifiedDates (Webpage pageTypeSpecific) where
-  modifiedDatesL = lens (webpageData >>> view modifiedDatesL) $
-    \s a -> s {webpageData = set modifiedDatesL a (webpageData s)}
-
-newtype WebpageBody pageTypeSpecific a = WebpageBody {runWebpageBody :: HtmlT (Reader (WebpageEnv pageTypeSpecific)) a}
-  deriving (Functor, Applicative, Monad, MonadReader (WebpageEnv pageTypeSpecific))
-
-deriving instance Semigroup (WebpageBody pageTypeSpecific ())
-
-instance HasDefault pageTypeSpecific => Show (WebpageBody pageTypeSpecific ()) where
-  show = show . renderWebpageBody theDefault
-
-instance IsString (WebpageBody pageTypeSpecific ()) where
+instance IsString (WebpageBody pageType ()) where
   fromString = WebpageBody . toHtmlRaw
 
-instance (f ~ WebpageBody pageTypeSpecific a) => Term [Attribute] (f -> WebpageBody pageTypeSpecific a) where
+instance (f ~ WebpageBody pageType a) => Term [Attribute] (f -> WebpageBody pageType a) where
   termWith name f attr = WebpageBody . termWith name f attr . runWebpageBody
 
-instance Term (WebpageBody pageTypeSpecific a) (WebpageBody pageTypeSpecific a) where
+instance Term (WebpageBody pageType a) (WebpageBody pageType a) where
   termWith name f = WebpageBody . termWith name f . runWebpageBody
 
-toWebpageBody :: ToHtml a => a -> WebpageBody pageTypeSpecific ()
+toWebpageBody :: ToHtml a => a -> WebpageBody pageType ()
 toWebpageBody = WebpageBody . toHtml
 
-toWebpageBodyRaw :: ToHtml a => a -> WebpageBody pageTypeSpecific ()
+toWebpageBodyRaw :: ToHtml a => a -> WebpageBody pageType ()
 toWebpageBodyRaw = WebpageBody . toHtmlRaw
 
-renderWebpageBody :: WebpageEnv pageTypeSpecific -> WebpageBody pageTypeSpecific () -> BL.ByteString
+renderWebpageBody :: WebpageEnv pageType -> WebpageBody pageType () -> BL.ByteString
 renderWebpageBody env body =
   runWebpageBody body
     & renderBST
     & (`runReader` env)
 
-data FromHakyll pageTypeSpecific = FromHakyll
-  { fileContents :: Vector String,
-    pageTypeSpecific :: pageTypeSpecific
-  }
+class WebpageHakyllDataExchangeProtocol (pageType :: WebpageType) where
+  data FromWebpage pageType :: *
+  data ToWebpage pageType :: *
 
-instance HasDefault pageTypeSpecific => HasDefault (FromHakyll pageTypeSpecific) where
-  theDefault =
-    FromHakyll
-      { fileContents = mempty,
-        pageTypeSpecific = theDefault :: pageTypeSpecific
+-- data WebpageData = WebpageData
+--   { title :: String,
+--     description :: String,
+--     modifiedDates :: [String] -- older first iso8601
+--   }
+--   deriving (Show, Generic)
+
+instance WebpageHakyllDataExchangeProtocol ArticlePage where
+  data FromWebpage ArticlePage = FromArticle
+    { title :: String,
+      description :: String,
+      modifiedDates :: [String],
+      tags :: [String],
+      fileRequests :: [String]
+    }
+    deriving (Show, Eq, Generic)
+  data ToWebpage ArticlePage = ToArticle
+    { fileContents :: [String]
+    }
+    deriving (Show, Eq, Generic)
+
+instance Binary (FromWebpage ArticlePage)
+
+instance HasTitle (FromWebpage ArticlePage)
+
+instance HasDescription (FromWebpage ArticlePage)
+
+instance HasModifiedDates (FromWebpage ArticlePage)
+
+instance HasTags (FromWebpage ArticlePage)
+
+instance HasFileContentsRequest (FromWebpage ArticlePage)
+
+instance HasFileContentsResponse (ToWebpage ArticlePage)
+
+instance Default (FromWebpage ArticlePage) where
+  def =
+    FromArticle
+      { title = mempty,
+        description = mempty,
+        modifiedDates = mempty,
+        tags = mempty,
+        fileRequests = mempty
       }
 
-data IndexData = IndexData
-  { externals :: [Link],
-    articles :: [Link]
-  }
-  deriving (Show, Eq)
+instance Default (ToWebpage ArticlePage) where
+  def = ToArticle {fileContents = []}
 
-instance HasDefault IndexData where
-  theDefault = IndexData {externals = [], articles = []}
+instance WebpageHakyllDataExchangeProtocol IndexPage where
+  data FromWebpage IndexPage = FromIndex
+    { title :: String,
+      description :: String,
+      modifiedDates :: [String],
+      externals :: [Link],
+      articles :: [Link],
+      fileRequests :: [String]
+    }
+    deriving (Show, Eq, Generic)
+  data ToWebpage IndexPage = ToIndex
+    { fileContents :: [String]
+    }
+    deriving (Show, Eq, Generic)
 
-data ArticleData = ArticleData
-  deriving (Eq, Show, Generic)
+instance HasTitle (FromWebpage IndexPage)
 
--- instance
---   Functor protocol =>
---   HasFileContentsRequest (Webpage IndexData) protocol
---   where
---   hasRequestL = lens (\Webpage {fileContentsRequest = x} -> x) $
---     \s a -> s {fileContentsRequest = a}
+instance HasDescription (FromWebpage IndexPage)
+
+instance HasModifiedDates (FromWebpage IndexPage)
+
+instance HasFileContentsRequest (FromWebpage IndexPage)
+
+instance HasFileContentsResponse (ToWebpage IndexPage)
+
+instance Default (FromWebpage IndexPage) where
+  def =
+    FromIndex
+      { title = mempty,
+        description = mempty,
+        modifiedDates = mempty,
+        externals = mempty,
+        articles = mempty,
+        fileRequests = mempty
+      }
+
+instance Default (ToWebpage IndexPage) where
+  def = ToIndex {fileContents = []}
 
 data WebpageEnvInternal = WebpageEnvInternal
   { headerLevel :: Int,
@@ -216,64 +289,58 @@ data WebpageEnvInternal = WebpageEnvInternal
   }
   deriving (Eq, Show, Generic)
 
-class HasHeaderLevel env where
-  headerLevelL :: Lens' env Int
-
-class HasAnnotationIndex env where
-  annotationIndexL :: Lens' env Int
-
-instance HasHeaderLevel WebpageEnvInternal where
-  headerLevelL = lens headerLevel $
-    \s a -> s {headerLevel = a}
-
-instance HasAnnotationIndex WebpageEnvInternal where
-  annotationIndexL = lens annotationIndex $
-    \s a -> s {annotationIndex = a}
-
-data WebpageEnv pageTypeSpecific = WebpageEnv
+data WebpageEnv (pageType :: WebpageType) = WebpageEnv
   { internal :: WebpageEnvInternal,
-    fromHakyll :: FromHakyll pageTypeSpecific
+    toWebpage :: ToWebpage pageType
   }
   deriving (Generic)
 
-class HasWebpageEnvFromHakyll pageTypeSpecific env where
-  webpageEnvFromHakyllL :: Lens' env pageTypeSpecific
+instance Default (WebpageEnv ArticlePage) where
+  def = mkDefaultWebpageEnv def
 
-instance HasWebpageEnvFromHakyll (FromHakyll pageTypeSpecific) (WebpageEnv pageTypeSpecific) where
-  webpageEnvFromHakyllL = lens fromHakyll $
-    \s a -> s {fromHakyll = a}
+instance Default (WebpageEnv IndexPage) where
+  def = mkDefaultWebpageEnv def
 
-instance HasDefault pageTypeSpecific => HasDefault (WebpageEnv pageTypeSpecific) where
-  theDefault = defaultWebpageEnv theDefault
-
-defaultWebpageEnv :: FromHakyll pageTypeSpecific -> WebpageEnv pageTypeSpecific
-defaultWebpageEnv fromHakyll =
+mkDefaultWebpageEnv :: ToWebpage pageType -> WebpageEnv pageType
+mkDefaultWebpageEnv toWebpage =
   WebpageEnv
     { internal =
         WebpageEnvInternal
           { headerLevel = 0,
             annotationIndex = 0
           },
-      fromHakyll = fromHakyll
+      toWebpage = toWebpage
     }
-
-instance HasHeaderLevel (WebpageEnv pageTypeSpecific) where
-  headerLevelL = lens (internal >>> headerLevel) $
-    \s a -> s {internal = set headerLevelL a $ internal s}
-
-instance HasAnnotationIndex (WebpageEnv pageTypeSpecific) where
-  annotationIndexL = lens (internal >>> annotationIndex) $
-    \s a -> s {internal = set annotationIndexL a $ internal s}
 
 https :: (IsString s, Semigroup s) => s -> s
 https = (<>) "https://"
 
-h_ :: (MonadReader env m, HasHeaderLevel env, Term arg (m a)) => arg -> m a
-h_ arg =
-  let hOfLevel = [h1_, h2_, h3_, h4_, h5_, h6_]
+h_ ::
+  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+  (m a -> m a -> m a)
+h_ headerText body =
+  let hOfLevel :: forall m a. Term [Attribute] (m a -> m a) => [[Attribute] -> m a -> m a]
+      hOfLevel =
+        [h1_, h2_, h3_, h4_, h5_, h6_]
    in local (over headerLevelL (+ 1)) $ do
-        index <- view headerLevelL
-        L.genericIndex hOfLevel index arg
+        index <- min 5 . view headerLevelL <$> ask
+        L.genericIndex hOfLevel index [] headerText
+        body
+
+header ::
+  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+  (m a -> m a -> m a)
+header headerText = header_ [] . h_ headerText
+
+section ::
+  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+  (m a -> m a -> m a)
+section headerText body = section_ [] $ h_ headerText body
+
+paragraph ::
+  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+  (m a -> m a)
+paragraph = p_ []
 
 deriving instance Generic FeedConfiguration
 
@@ -289,10 +356,10 @@ defaultFeedConfig =
       feedRoot = "https://1inguini.github.io"
     }
 
-doctypehtml_ :: WebpageBody pageTypeSpecific () -> WebpageBody pageTypeSpecific ()
+doctypehtml_ :: WebpageBody pageType () -> WebpageBody pageType ()
 doctypehtml_ = WebpageBody . Lucid.doctypehtml_ . runWebpageBody
 
-link_, meta_ :: [Attribute] -> WebpageBody pageTypeSpecific ()
+link_, meta_ :: [Attribute] -> WebpageBody pageType ()
 link_ = WebpageBody . Lucid.link_
 meta_ = WebpageBody . Lucid.meta_
 
@@ -301,14 +368,18 @@ prefix_ = Lucid.makeAttribute "prefix"
 property_ = Lucid.makeAttribute "property"
 
 -- mkBlogPost :: Monad m => FeedConfiguration -> HtmlT m () -> BlogPost m
-articleCommon :: Text -> WebpageBody pageTypeSpecific () -> WebpageBody pageTypeSpecific ()
-articleCommon title = article_ . (h_ (toWebpageBodyRaw title) <>)
+articleCommon :: Webpage pageType -> Webpage pageType
+articleCommon webpage =
+  set
+    (webpageBodyL :: Lens' (Webpage pageType) (WebpageBody pageType ()))
+    (article_ $ h_ (toWebpageBody (view titleL webpage)) $ view webpageBodyL webpage)
+    webpage
 
-webpageCommon :: Webpage pageTypeSpecific -> Webpage pageTypeSpecific
+webpageCommon :: Webpage pageType -> Webpage pageType
 webpageCommon webpage =
   let og property content = meta_ [property_ ("og:" <> property), content_ content]
    in webpage
-        { body =
+        { webpageBody =
             doctypehtml_ $ do
               head_ [prefix_ "og:https://ogp.me/ns#"] $ do
                 meta_ [charset_ "utf-8"]
@@ -321,34 +392,39 @@ webpageCommon webpage =
                 -- link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"]
                 link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css"]
               body_ $ do
-                header_ $ h1_ "linguiniの✨ブログ✨" :: WebpageBody pageTypeSpecific ()
-                main_ $ body webpage
-                footer_ $ "Copyright: © 2020 linguini. Site proudly generated by " <> aHref "http://jaspervdj.be/hakyll" "Hakyll" <> ". Visit the site repository from " <> aHref "https://github.com/1inguini/1inguini.github.io" "here" <> "."
+                header_ $ h1_ "linguiniの✨ブログ✨" :: WebpageBody pageType ()
+                main_ $ view webpageBodyL webpage
+                footer_ $ "Copyright: © 2020 linguini. Site proudly generated by " <> hyperlink "http://jaspervdj.be/hakyll" "Hakyll" <> ". Visit the site repository from " <> hyperlink "https://github.com/1inguini/1inguini.github.io" "here" <> "."
         }
 
 type Link = (FilePath, String)
 
-aHrefInternal :: Term [Attribute] result => Text -> result
-aHrefInternal l = a_ [href_ l]
+hyperlinkInternal :: Term [Attribute] result => Text -> result
+hyperlinkInternal l = a_ [href_ l]
 
-aHref :: Term [Attribute] result => Text -> result
-aHref l = a_ (href_ l : newTabAttr)
+hyperlink :: Term [Attribute] result => Text -> result
+hyperlink l = a_ (href_ l : newTabAttr)
 
 newTabAttr :: [Attribute]
 newTabAttr = [target_ "_blank", rel_ "noreferrer noopener"]
 
-aHrefEcho :: Text -> WebpageBody pageTypeSpecific ()
-aHrefEcho l = aHref l $ toWebpageBodyRaw l
+hyperlinkEcho :: Text -> WebpageBody pageType ()
+hyperlinkEcho l = hyperlink l $ toWebpageBodyRaw l
 
-aHrefGitHub :: Text -> WebpageBody pageTypeSpecific ()
-aHrefGitHub repo =
+hyperlinkGitHub :: Text -> WebpageBody pageType ()
+hyperlinkGitHub repo =
   a_ (href_ (https "github.com/" <> repo) : newTabAttr) $ toWebpageBodyRaw repo
 
-aHrefList :: Foldable t => [Attribute] -> t Link -> WebpageBody pageTypeSpecific ()
-aHrefList attrs ls =
+hyperlinkList :: Foldable t => [Attribute] -> t Link -> WebpageBody pageType ()
+hyperlinkList attrs ls =
   ul_ $
     mapM_
       ( \(path, desc) ->
           li_ $ a_ (href_ (T.pack path) : attrs) (toWebpageBodyRaw desc)
       )
       ls
+
+code ::
+  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+  (m a -> m a)
+code = code_

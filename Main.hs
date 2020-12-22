@@ -7,7 +7,6 @@ import Hakyll
 import Language.Haskell.Interpreter (OptionVal ((:=)))
 import qualified Language.Haskell.Interpreter as Hint
 import Lucid (Html, renderBS)
-import RIO
 import qualified RIO.ByteString.Lazy as BL
 import qualified RIO.Char as C
 import qualified RIO.List as L
@@ -86,9 +85,9 @@ main =
             route $ constRoute "index.html"
             compile $ do
               articles <-
-                fmap (itemBody >>> second feedTitle)
+                fmap (itemBody >>> second (view titleL))
                   <$> ( loadAllSnapshots postsHaskell pathAndWebpageData ::
-                          Compiler [Item (FilePath, FeedConfiguration)]
+                          Compiler [Item (FilePath, WebpageData)]
                       )
               index <- interpret "index" (Hint.as :: Webpage IndexData)
               webpageCompiler
@@ -127,7 +126,7 @@ webpageCompiler envFromHakyll webpageBody =
         Proc.setStdin
           ( Proc.byteStringInput $
               renderWebpageBody
-                (defaultWebpageEnv envFromHakyll)
+                (mkDefaultWebpageEnv envFromHakyll)
                 webpageBody
           )
           "npx js-beautify --type=html -"

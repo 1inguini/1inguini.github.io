@@ -32,16 +32,21 @@ dependencies:
 - lucid
 - hint
 - binary
+- optics
+- generic-optics
+- data-default-class
 
 default-extensions:
-- NoImplicitPrelude
+# - NoImplicitPrelude
 - OverloadedStrings
 - GeneralizedNewtypeDeriving
+- DuplicateRecordFields
 # - ExistentialQuantification
 
 library:
   source-dirs:
   - templates
+  - src
   when:
   - condition: false
     other-modules: Paths_1inguini_github_io
