@@ -34,6 +34,7 @@ module Template
     paragraph,
     renderWebpageBody,
     section,
+    siteName,
     toWebpageBody,
     toWebpageBodyRaw,
     webpageCommon,
@@ -397,6 +398,8 @@ mkDefaultWebpageEnv toWebpage =
       toWebpage = toWebpage
     }
 
+siteName = "linguiniのブログ"
+
 https :: (IsString s, Semigroup s) => s -> s
 https = (<>) "https://"
 
@@ -475,7 +478,10 @@ webpageCommon webpage =
               head_ [prefix_ "og:https://ogp.me/ns#"] $ do
                 meta_ [charset_ "utf-8"]
                 title_ $ toWebpageBodyRaw $ view titleL webpage
+                og "site_name" siteName
+                og "image" "https://avatars0.githubusercontent.com/u/42938754?s=400&v=4"
                 og "title" $ T.pack $ view titleL webpage
+                og "description" $ T.pack $ view descriptionL webpage
                 meta_ [name_ "linguini", content_ "blog"]
                 meta_ [name_ "generator", content_ "Hakyll"]
                 meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
