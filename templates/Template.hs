@@ -1,16 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-
 -- | basic templates
 module Template
   ( module Hakyll,
@@ -24,24 +11,26 @@ module Template
     HasTags (..),
     HasTitle (..),
     HasWebpageBody (..),
+    HasWebpageCommonData (..),
+    WebpageHakyllDataExchangeProtocol (..),
+    ArticleProtocol (..),
+    IndexProtocol (..),
     Webpage (..),
     WebpageBody (..),
+    WebpageCommonData (..),
     WebpageEnv (..),
     Link (..),
+    articleCommon,
+    code,
+    defaultFeedConfig,
+    header,
+    https,
     hyperlink,
     hyperlinkEcho,
     hyperlinkGitHub,
     hyperlinkInternal,
     hyperlinkList,
-    articleCommon,
-    code,
-    defaultFeedConfig,
     mkDefaultWebpageEnv,
-    header,
-    https,
-    link_,
-    meta_,
-    newTabAttr,
     paragraph,
     renderWebpageBody,
     section,
@@ -69,6 +58,7 @@ import qualified RIO.List as L
 import RIO.State
 import qualified RIO.Text as T
 import RIO.Time
+import Share
 
 class HasTitle a where
   titleL :: Lens' a String
@@ -85,15 +75,26 @@ class HasModifiedDates a where
   default modifiedDatesL :: HasField' "modifiedDates" a [String] => Lens' a [String]
   modifiedDatesL = field' @"modifiedDates"
 
-class HasWebpageBody (pageType :: WebpageType) a where
-  webpageBodyL :: Lens' a (WebpageBody pageType ())
-  default webpageBodyL :: HasField' "webpageBody" a (WebpageBody pageType ()) => Lens' a (WebpageBody pageType ())
+class HasWebpageBody (protocol :: Bool -> *) a where
+  webpageBodyL :: Lens' a (WebpageBody protocol ())
+  default webpageBodyL ::
+    HasField' "webpageBody" a (WebpageBody protocol ()) =>
+    Lens' a (WebpageBody protocol ())
   webpageBodyL = field' @"webpageBody"
 
-class HasWebpageData a where
-  webpageDataL :: Lens' a (ToWebpage x)
-  default webpageDataL :: HasField' "webpageData" a (ToWebpage x) => Lens' a (ToWebpage x)
-  webpageDataL = field' @"webpageData"
+class
+  ( HasTitle a,
+    HasDescription a,
+    HasModifiedDates a,
+    HasFileContentsRequest a
+  ) =>
+  HasWebpageCommonData a
+  where
+  webpageCommonDataL :: Lens' a WebpageCommonData
+  default webpageCommonDataL ::
+    (Generic a, Subtype WebpageCommonData a) =>
+    Lens' a WebpageCommonData
+  webpageCommonDataL = super @WebpageCommonData
 
 class HasHeaderLevel env where
   headerLevelL :: Lens' env Int
@@ -120,24 +121,49 @@ class HasTags a where
   default tagsL :: HasField' "tags" a [String] => Lens' a [String]
   tagsL = field' @"tags"
 
-data WebpageType
-  = ArticlePage
-  | IndexPage
-  deriving (Eq, Show, Generic)
-
-data Webpage (pageType :: WebpageType) = Webpage
-  { webpageData :: FromWebpage pageType,
-    webpageBody :: WebpageBody pageType ()
+data Webpage (protocol :: Bool -> *) = Webpage
+  { webpageData :: protocol True,
+    webpageBody :: WebpageBody protocol ()
   }
   deriving (Generic)
 
-instance HasTitle (Webpage ArticlePage) where
+instance Default (Webpage ArticleProtocol) where
+  def = Webpage def def
+
+instance Default (Webpage IndexProtocol) where
+  def = Webpage def def
+
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasTitle (Webpage protocol)
+  where
   titleL = field' @"webpageData" % titleL
 
-instance HasTitle (Webpage IndexPage) where
-  titleL = field' @"webpageData" % titleL
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasModifiedDates (Webpage protocol)
+  where
+  modifiedDatesL = field' @"webpageData" % modifiedDatesL
 
-instance HasWebpageBody pageType (Webpage pageType)
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasDescription (Webpage protocol)
+  where
+  descriptionL = field' @"webpageData" % descriptionL
+
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasFileContentsRequest (Webpage protocol)
+  where
+  fileRequestsL = field' @"webpageData" % fileRequestsL
+
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasWebpageCommonData (Webpage protocol)
+  where
+  webpageCommonDataL = field' @"webpageData" % webpageCommonDataL
+
+instance HasWebpageBody protocol (Webpage protocol)
 
 -- -- data ExampleFileContentRequests a = Example {codeSnippet0, codeSnippet1 :: a} deriving (Functor)といった型を定義してExampleFileContentRequests FilePathで内容がほしいファイルを指定、HakyllがExampleFileContentRequests String(このStringはファイルの中身)といった形で返してくれることを期待する
 -- -- Functional DependenciesがないとfileContentRequestsL(もしくはfileContentsL)だけ見たときにHasFileContentsRequestResponse AProtocol ARequest AResponseの可能性だけでなくHasFileContentsRequestResponse AProtocol ARequest BOtherResponseSuchAsIntの可能性も出てきてしまうのでエラーが出る、これブログに書こう
@@ -149,139 +175,186 @@ instance HasWebpageBody pageType (Webpage pageType)
 --   fileContentsRequestL :: Lens' hasRequests (protocol FilePath)
 --   fileContentsL :: Lens' hasResposes (protocol String)
 
-newtype WebpageBody pageType a = WebpageBody {runWebpageBody :: HtmlT (Reader (WebpageEnv pageType)) a}
-  deriving (Generic, Functor, Applicative, Monad, MonadReader (WebpageEnv pageType))
+newtype WebpageBody (protocol :: Bool -> *) a = WebpageBody {runWebpageBody :: HtmlT (Reader (WebpageEnv protocol)) a}
+  deriving (Generic, Functor, Applicative, Monad, MonadReader (WebpageEnv protocol))
 
-deriving instance Semigroup (WebpageBody pageType ())
+deriving instance Semigroup (WebpageBody protocol ())
 
-instance Default (WebpageEnv pageType) => Show (WebpageBody pageType ()) where
+instance Default (WebpageBody protocol ()) where
+  def = WebpageBody mempty
+
+instance Default (WebpageEnv protocol) => Show (WebpageBody protocol ()) where
   show = show . renderWebpageBody def
 
-instance Default (Webpage ArticlePage) where
-  def =
-    Webpage
-      { webpageData = def,
-        webpageBody = WebpageBody mempty
-      }
-
-instance Default (Webpage IndexPage) where
-  def =
-    Webpage
-      { webpageData = def,
-        webpageBody = WebpageBody mempty
-      }
-
-instance IsString (WebpageBody pageType ()) where
+instance IsString (WebpageBody protocol ()) where
   fromString = WebpageBody . toHtmlRaw
 
-instance (f ~ WebpageBody pageType a) => Term [Attribute] (f -> WebpageBody pageType a) where
+instance (f ~ WebpageBody protocol a) => Term [Attribute] (f -> WebpageBody protocol a) where
   termWith name f attr = WebpageBody . termWith name f attr . runWebpageBody
 
-instance Term (WebpageBody pageType a) (WebpageBody pageType a) where
+instance Term (WebpageBody protocol a) (WebpageBody protocol a) where
   termWith name f = WebpageBody . termWith name f . runWebpageBody
 
-toWebpageBody :: ToHtml a => a -> WebpageBody pageType ()
+toWebpageBody :: ToHtml a => a -> WebpageBody protocol ()
 toWebpageBody = WebpageBody . toHtml
 
-toWebpageBodyRaw :: ToHtml a => a -> WebpageBody pageType ()
+toWebpageBodyRaw :: ToHtml a => a -> WebpageBody protocol ()
 toWebpageBodyRaw = WebpageBody . toHtmlRaw
 
-renderWebpageBody :: WebpageEnv pageType -> WebpageBody pageType () -> BL.ByteString
+renderWebpageBody :: WebpageEnv protocol -> WebpageBody protocol () -> BL.ByteString
 renderWebpageBody env body =
   runWebpageBody body
     & renderBST
     & (`runReader` env)
 
-class WebpageHakyllDataExchangeProtocol (pageType :: WebpageType) where
-  data FromWebpage pageType :: *
-  data ToWebpage pageType :: *
+-- class WebpageHakyllDataExchangeProtocol (protocol :: Webprotocol) where
+--   data FromWebpage protocol :: *
+--   data ToWebpage protocol :: *
 
--- data WebpageData = WebpageData
---   { title :: String,
---     description :: String,
---     modifiedDates :: [String] -- older first iso8601
---   }
---   deriving (Show, Generic)
+class
+  ( HasWebpageCommonData (protocol True),
+    HasFileContentsResponse (protocol False)
+  ) =>
+  WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
 
-instance WebpageHakyllDataExchangeProtocol ArticlePage where
-  data FromWebpage ArticlePage = FromArticle
-    { title :: String,
-      description :: String,
-      modifiedDates :: [String],
-      tags :: [String],
-      fileRequests :: [String]
-    }
-    deriving (Show, Eq, Generic)
-  data ToWebpage ArticlePage = ToArticle
-    { fileContents :: [String]
-    }
-    deriving (Show, Eq, Generic)
+data WebpageCommonData = WebpageCommonData
+  { title :: String,
+    description :: String,
+    modifiedDates :: [String] -- older first iso8601
+  }
+  deriving (Show, Generic)
 
-instance Binary (FromWebpage ArticlePage)
+instance Binary WebpageCommonData
 
-instance HasTitle (FromWebpage ArticlePage)
+instance HasTitle WebpageCommonData
 
-instance HasDescription (FromWebpage ArticlePage)
+instance HasDescription WebpageCommonData
 
-instance HasModifiedDates (FromWebpage ArticlePage)
+instance HasModifiedDates WebpageCommonData
 
-instance HasTags (FromWebpage ArticlePage)
+-- WebpageHakyllDataExchangeProtocol for Article
+instance WebpageHakyllDataExchangeProtocol ArticleProtocol
 
-instance HasFileContentsRequest (FromWebpage ArticlePage)
+data family ArticleProtocol (isFromWebpage :: Bool)
 
-instance HasFileContentsResponse (ToWebpage ArticlePage)
+data instance ArticleProtocol True = FromArticle
+  { title :: String,
+    description :: String,
+    modifiedDates :: [String],
+    tags :: [String],
+    fileRequests :: [String]
+  }
+  deriving (Show, Eq, Generic)
 
-instance Default (FromWebpage ArticlePage) where
-  def =
-    FromArticle
-      { title = mempty,
-        description = mempty,
-        modifiedDates = mempty,
-        tags = mempty,
-        fileRequests = mempty
-      }
+instance HasWebpageCommonData (ArticleProtocol True)
 
-instance Default (ToWebpage ArticlePage) where
-  def = ToArticle {fileContents = []}
+instance HasTitle (ArticleProtocol True)
 
-instance WebpageHakyllDataExchangeProtocol IndexPage where
-  data FromWebpage IndexPage = FromIndex
-    { title :: String,
-      description :: String,
-      modifiedDates :: [String],
-      externals :: [Link],
-      articles :: [Link],
-      fileRequests :: [String]
-    }
-    deriving (Show, Eq, Generic)
-  data ToWebpage IndexPage = ToIndex
-    { fileContents :: [String]
-    }
-    deriving (Show, Eq, Generic)
+instance HasDescription (ArticleProtocol True)
 
-instance HasTitle (FromWebpage IndexPage)
+instance HasModifiedDates (ArticleProtocol True)
 
-instance HasDescription (FromWebpage IndexPage)
+instance HasFileContentsRequest (ArticleProtocol True)
 
-instance HasModifiedDates (FromWebpage IndexPage)
+instance HasTags (ArticleProtocol True)
 
-instance HasFileContentsRequest (FromWebpage IndexPage)
+instance Binary (ArticleProtocol True)
 
-instance HasFileContentsResponse (ToWebpage IndexPage)
+instance Default (ArticleProtocol True) where
+  def = FromArticle mempty mempty mempty mempty mempty
 
-instance Default (FromWebpage IndexPage) where
-  def =
-    FromIndex
-      { title = mempty,
-        description = mempty,
-        modifiedDates = mempty,
-        externals = mempty,
-        articles = mempty,
-        fileRequests = mempty
-      }
+newtype instance ArticleProtocol False = ToArticle
+  { fileContents :: [String]
+  }
+  deriving (Show, Eq, Generic)
 
-instance Default (ToWebpage IndexPage) where
-  def = ToIndex {fileContents = []}
+instance Default (ArticleProtocol False) where
+  def = ToArticle mempty
+
+instance HasFileContentsResponse (ArticleProtocol False)
+
+-- end of WebpageHakyllDataExchangeProtocol for Article
+
+-- WebpageHakyllDataExchangeProtocol for Index
+instance WebpageHakyllDataExchangeProtocol IndexProtocol
+
+data family IndexProtocol (isFromWebpage :: Bool)
+
+data instance IndexProtocol True = FromIndex
+  { title :: String,
+    description :: String,
+    modifiedDates :: [String],
+    fileRequests :: [String]
+  }
+  deriving (Show, Eq, Generic)
+
+instance HasWebpageCommonData (IndexProtocol True)
+
+instance HasTitle (IndexProtocol True)
+
+instance HasDescription (IndexProtocol True)
+
+instance HasModifiedDates (IndexProtocol True)
+
+instance HasFileContentsRequest (IndexProtocol True)
+
+instance Binary (IndexProtocol True)
+
+instance Default (IndexProtocol True) where
+  def = FromIndex mempty mempty mempty mempty
+
+data instance IndexProtocol False = ToIndex
+  { externals :: [Link],
+    articles :: [Link],
+    fileContents :: [String]
+  }
+  deriving (Show, Eq, Generic)
+
+instance Default (IndexProtocol False) where
+  def = ToIndex mempty mempty mempty
+
+instance HasFileContentsResponse (IndexProtocol False)
+
+-- end of WebpageHakyllDataExchangeProtocol for Index
+
+-- instance WebpageHakyllDataExchangeProtocol IndexPage where
+--   data FromWebpage IndexPage = FromIndex
+--     { title :: String,
+--       description :: String,
+--       modifiedDates :: [String],
+--       externals :: [Link],
+--       articles :: [Link],
+--       fileRequests :: [String]
+--     }
+--     deriving (Show, Eq, Generic)
+--   data ToWebpage IndexPage = ToIndex
+--     { fileContents :: [String]
+--     }
+--     deriving (Show, Eq, Generic)
+
+-- instance HasTitle (FromWebpage IndexPage)
+
+-- instance HasDescription (FromWebpage IndexPage)
+
+-- instance HasModifiedDates (FromWebpage IndexPage)
+
+-- instance HasFileContentsRequest (FromWebpage IndexPage)
+
+-- instance HasFileContentsResponse (ToWebpage IndexPage)
+
+-- instance Default (FromWebpage IndexPage) where
+--   def =
+--     FromIndex
+--       { title = mempty,
+--         description = mempty,
+--         modifiedDates = mempty,
+--         externals = mempty,
+--         articles = mempty,
+--         fileRequests = mempty
+--       }
+
+-- instance Default (ToWebpage IndexPage) where
+--   def = ToIndex {fileContents = []}
 
 data WebpageEnvInternal = WebpageEnvInternal
   { headerLevel :: Int,
@@ -289,19 +362,31 @@ data WebpageEnvInternal = WebpageEnvInternal
   }
   deriving (Eq, Show, Generic)
 
-data WebpageEnv (pageType :: WebpageType) = WebpageEnv
+instance HasHeaderLevel WebpageEnvInternal
+
+instance HasAnnotationIndex WebpageEnvInternal
+
+data WebpageEnv (protocol :: Bool -> *) = WebpageEnv
   { internal :: WebpageEnvInternal,
-    toWebpage :: ToWebpage pageType
+    toWebpage :: protocol False
   }
   deriving (Generic)
 
-instance Default (WebpageEnv ArticlePage) where
+instance Default (WebpageEnv ArticleProtocol) where
   def = mkDefaultWebpageEnv def
 
-instance Default (WebpageEnv IndexPage) where
-  def = mkDefaultWebpageEnv def
+instance HasHeaderLevel (WebpageEnv protocol) where
+  headerLevelL = typed @WebpageEnvInternal % headerLevelL
 
-mkDefaultWebpageEnv :: ToWebpage pageType -> WebpageEnv pageType
+instance HasAnnotationIndex (WebpageEnv protocol) where
+  annotationIndexL = typed @WebpageEnvInternal % annotationIndexL
+
+-- instance Default (WebpageEnv IndexPage) where
+--   def = mkDefaultWebpageEnv def
+
+mkDefaultWebpageEnv ::
+  protocol False ->
+  WebpageEnv protocol
 mkDefaultWebpageEnv toWebpage =
   WebpageEnv
     { internal =
@@ -356,10 +441,10 @@ defaultFeedConfig =
       feedRoot = "https://1inguini.github.io"
     }
 
-doctypehtml_ :: WebpageBody pageType () -> WebpageBody pageType ()
+doctypehtml_ :: WebpageBody protocol () -> WebpageBody protocol ()
 doctypehtml_ = WebpageBody . Lucid.doctypehtml_ . runWebpageBody
 
-link_, meta_ :: [Attribute] -> WebpageBody pageType ()
+link_, meta_ :: [Attribute] -> WebpageBody protocol ()
 link_ = WebpageBody . Lucid.link_
 meta_ = WebpageBody . Lucid.meta_
 
@@ -368,14 +453,20 @@ prefix_ = Lucid.makeAttribute "prefix"
 property_ = Lucid.makeAttribute "property"
 
 -- mkBlogPost :: Monad m => FeedConfiguration -> HtmlT m () -> BlogPost m
-articleCommon :: Webpage pageType -> Webpage pageType
+articleCommon ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  Webpage protocol ->
+  Webpage protocol
 articleCommon webpage =
   set
-    (webpageBodyL :: Lens' (Webpage pageType) (WebpageBody pageType ()))
+    (webpageBodyL :: Lens' (Webpage protocol) (WebpageBody protocol ()))
     (article_ $ h_ (toWebpageBody (view titleL webpage)) $ view webpageBodyL webpage)
     webpage
 
-webpageCommon :: Webpage pageType -> Webpage pageType
+webpageCommon ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  Webpage protocol ->
+  Webpage protocol
 webpageCommon webpage =
   let og property content = meta_ [property_ ("og:" <> property), content_ content]
    in webpage
@@ -392,7 +483,7 @@ webpageCommon webpage =
                 -- link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"]
                 link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css"]
               body_ $ do
-                header_ $ h1_ "linguiniの✨ブログ✨" :: WebpageBody pageType ()
+                header_ $ h1_ "linguiniの✨ブログ✨" :: WebpageBody protocol ()
                 main_ $ view webpageBodyL webpage
                 footer_ $ "Copyright: © 2020 linguini. Site proudly generated by " <> hyperlink "http://jaspervdj.be/hakyll" "Hakyll" <> ". Visit the site repository from " <> hyperlink "https://github.com/1inguini/1inguini.github.io" "here" <> "."
         }
@@ -408,19 +499,19 @@ hyperlink l = a_ (href_ l : newTabAttr)
 newTabAttr :: [Attribute]
 newTabAttr = [target_ "_blank", rel_ "noreferrer noopener"]
 
-hyperlinkEcho :: Text -> WebpageBody pageType ()
+hyperlinkEcho :: Text -> WebpageBody protocol ()
 hyperlinkEcho l = hyperlink l $ toWebpageBodyRaw l
 
-hyperlinkGitHub :: Text -> WebpageBody pageType ()
+hyperlinkGitHub :: Text -> WebpageBody protocol ()
 hyperlinkGitHub repo =
   a_ (href_ (https "github.com/" <> repo) : newTabAttr) $ toWebpageBodyRaw repo
 
-hyperlinkList :: Foldable t => [Attribute] -> t Link -> WebpageBody pageType ()
-hyperlinkList attrs ls =
+hyperlinkList :: Foldable t => Bool -> t Link -> WebpageBody protocol ()
+hyperlinkList isExternal ls =
   ul_ $
     mapM_
       ( \(path, desc) ->
-          li_ $ a_ (href_ (T.pack path) : attrs) (toWebpageBodyRaw desc)
+          li_ $ a_ (href_ (T.pack path) : (if isExternal then newTabAttr else [])) (toWebpageBodyRaw desc)
       )
       ls
 

@@ -37,11 +37,26 @@ dependencies:
 - data-default-class
 
 default-extensions:
-# - NoImplicitPrelude
-- OverloadedStrings
-- GeneralizedNewtypeDeriving
+- DataKinds
+- DefaultSignatures
+- DeriveGeneric
+- ExistentialQuantification
+- FlexibleContexts
+- FlexibleInstances
 - DuplicateRecordFields
-# - ExistentialQuantification
+- GADTs
+- GeneralisedNewtypeDeriving
+- MultiParamTypeClasses
+- OverloadedStrings
+- ScopedTypeVariables
+- StandaloneDeriving
+- TypeFamilies
+
+- TypeApplications
+- NoImplicitPrelude
+
+
+
 
 library:
   source-dirs:
@@ -76,6 +91,7 @@ tests:
     #- posts
     - pages
     - templates
+    - src
     # dependencies:
     # - 1inguini-github-io
     when:

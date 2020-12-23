@@ -3,8 +3,8 @@
 
 <head prefix="og:https://ogp.me/ns#">
     <meta charset="utf-8">
-    <title>HakyllとLucidでブログ書き始めたよ</title>
-    <meta property="og:title" content="HakyllとLucidでブログ書き始めたよ">
+    <title>ブログ準備中その0</title>
+    <meta property="og:title" content="ブログ準備中その0">
     <meta content="blog" name="linguini">
     <meta content="Hakyll" name="generator">
     <meta content="width=device-width, initial-scale=1" name="viewport">
@@ -18,7 +18,7 @@
     </header>
     <main>
         <article>
-            <h2>HakyllとLucidでブログ書き始めたよ</h2>
+            <h2>ブログ準備中その0</h2>
             <section>
                 <h3>きっかけ</h3>
                 <p>ことの発端は<a href="https://linguini.booth.pm/items/2496957" rel="noreferrer noopener" target="_blank">リア-アリス向けロングコート</a>のライセンスを公開するために作った<a href="https://github.com/1inguini/Licences" rel="noreferrer noopener" target="_blank">1inguini/Licences</a>をみていたときに、「<a href="https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" rel="noreferrer noopener" target="_blank">https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf</a>を公開してるのに<a href="https://1inguini.github.io/Licences" rel="noreferrer noopener" target="_blank">https://1inguini.github.io/Licences</a>に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。</p>
@@ -27,27 +27,6 @@
             </section>
             <section>
                 <h3>今までの進捗</h3>
-                <section>
-                    <h4>header4</h4>
-                    <section>
-                        <h5>header5</h5>
-                        <section>
-                            <h6>header6</h6>
-                            <section>
-                                <h6>header7</h6>
-                                <section>
-                                    <h6>header5</h6>
-                                    <section>
-                                        <h6>header6</h6>
-                                        <section>
-                                            <h6>header7</h6>end
-                                        </section>
-                                    </section>
-                                </section>
-                            </section>
-                        </section>
-                    </section>
-                </section>
                 <p>Hakyllは生成したファイルを_site/以下に吐くのでgitのルートディレクトリか/docディレクトリかにサイトがあることを期待するGitHub Pagesに使うには少し工夫が必要でした。何したかって言いますとgh-pagesブランチを作ってそれを<code>git submodule add -b gh-pages https://github.com/1inguini/1inguini.github.io.git _site</code>しました。「しました」ってさらっと書いてますが<code>stack run rebuild</code>して.gitディレクトリを消し飛ばしたり<code>git reset --hard</code><code>git push -f</code>しまくったりと(良い子は真似しないでね!)すんなりはできませんでした(もっとgitと仲良くなろうね)。ところで今見たらHakyll側で割と簡単に出力先を変えれるっぽいな?</p>
                 <p>というわけで早速<code>main = hakyll $ do</code>を<code>hakyllWith defaultConfiguration { destinationDirectory = "doc" } $ do</code>に置き換えました。いやー快適。やったね。</p>
             </section>

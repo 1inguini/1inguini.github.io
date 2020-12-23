@@ -1,6 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
-
 module Main where
 
 import Hakyll
@@ -12,6 +9,7 @@ import qualified RIO.Char as C
 import qualified RIO.List as L
 import qualified RIO.Process as Proc (byteStringInput, readProcess_, setStdin)
 import qualified RIO.Text.Lazy as Text
+import Share
 import System.IO (hPutStrLn)
 import Template
 
@@ -24,9 +22,9 @@ postsHtml = fromGlob $ postsDir <> "*.html"
 redirectsDir :: IsString s => s
 redirectsDir = "redirects"
 
-defaultIndexData :: IndexData
+defaultIndexData :: IndexProtocol False
 defaultIndexData =
-  IndexData
+  def
     { externals =
         fmap
           (first https)
@@ -36,8 +34,7 @@ defaultIndexData =
             ("linguini.booth.pm", "BOOTH"),
             ("www.amazon.co.jp/hz/wishlist/dl/invite/ieqolZ4?ref_=wl_share", "干し芋"),
             ("vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
-          ],
-      articles = []
+          ]
     }
 
 -- camelToSnake ::
@@ -48,7 +45,10 @@ camelToSnake (c : cs) =
         | otherwise = (c :)
    in C.toLower c : foldr upperToUnderscore "" cs
 
-feedContext :: Webpage fromHakyll -> Context String
+feedContext ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  Webpage protocol ->
+  Context String
 feedContext page =
   let fromMaybeEmptyModifiedDates safeGetElement =
         fromMaybe "Error: modifiedDates empty" $
@@ -87,39 +87,36 @@ main =
               articles <-
                 fmap (itemBody >>> second (view titleL))
                   <$> ( loadAllSnapshots postsHaskell pathAndWebpageData ::
-                          Compiler [Item (FilePath, WebpageData)]
+                          Compiler [Item (FilePath, WebpageCommonData)]
                       )
-              index <- interpret "index" (Hint.as :: Webpage IndexData)
+              index <- interpret "index" (Hint.as :: Webpage IndexProtocol)
               webpageCompiler
-                FromHakyll
+                defaultIndexData
                   { fileContents = mempty,
-                    pageTypeSpecific = defaultIndexData {articles = articles}
+                    articles = articles
                   }
-                $ body index
+                $ view webpageBodyL index
 
           match postsHaskell $ do
             route $ setExtension "html"
             compile $ do
               (Just path) <- getRoute =<< getUnderlying
-              blogPost <- interpret "post" (Hint.as :: Webpage ArticleData)
-              makeItem (path, webpageData blogPost)
+              blogPost <- interpret "post" (Hint.as :: Webpage ArticleProtocol)
+              makeItem (path, view webpageCommonDataL blogPost)
                 >>= saveSnapshot pathAndWebpageData
               requestedFiles <-
                 mapM
                   (loadBody . fromFilePath :: FilePath -> Compiler String)
-                  $ view hasRequestL blogPost
+                  $ view fileRequestsL blogPost
               webpageCompiler
-                FromHakyll
-                  { fileContents = requestedFiles,
-                    pageTypeSpecific = ArticleData
-                  }
-                $ body blogPost
+                (def {fileContents = requestedFiles} :: ArticleProtocol False)
+                $ view webpageBodyL blogPost
 
-          match "**/*.html" $ do
-            route idRoute
-            compile getResourceBody
-
-webpageCompiler :: FromHakyll fromHakyll -> WebpageBody fromHakyll () -> Compiler (Item BL.ByteString)
+webpageCompiler ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  protocol False ->
+  WebpageBody protocol () ->
+  Compiler (Item BL.ByteString)
 webpageCompiler envFromHakyll webpageBody =
   unsafeCompiler
     ( Proc.readProcess_ $
@@ -145,7 +142,15 @@ interpret code as = do
     interpret' :: Typeable a => FilePath -> String -> a -> IO (Either Hint.InterpreterError a)
     interpret' filepath expr as =
       Hint.runInterpreter $ do
+        Hint.set
+          [ Hint.languageExtensions
+              := [ Hint.NoImplicitPrelude,
+                   Hint.OverloadedStrings,
+                   Hint.TypeApplications,
+                   Hint.DataKinds
+                 ]
+          ]
         Hint.loadModules [filepath]
         Hint.setTopLevelModules ["Main"]
-        Hint.setImports ["RIO", "Template"]
+        Hint.setImports ["Share", "Template"]
         Hint.interpret expr as

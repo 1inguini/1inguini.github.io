@@ -1,6 +1,7 @@
 -- | my custom Prelude (basicly re-exporting RIO with some things hided)
-module Prelude
+module Share
   ( module Data.Default.Class,
+    module Data.Generics.Product,
     module GHC.Generics,
     module Optics,
     module RIO,
@@ -8,6 +9,7 @@ module Prelude
 where
 
 import Data.Default.Class
+import Data.Generics.Product
 import GHC.Generics (Generic)
 import Optics
 import RIO hiding

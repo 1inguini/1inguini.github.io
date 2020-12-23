@@ -1,21 +1,29 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- | generate index.html
 module Main where
 
-import qualified Data.ByteString.Lazy as BS
-import Data.Functor.Identity (Identity (Identity))
-import Data.Text (Text, pack)
+import Share
 import Template
 
 main = undefined
 
-index :: IndexData -> Html ()
-index indexData = template "linguiniのブログ" $ do
-  section_ $ do
-    h1_ "外部リンク"
-    linkList newTabAttr $ externals indexData
+index :: Webpage IndexProtocol
+index =
+  webpageCommon . articleCommon
+    . set titleL "Index"
+    . set descriptionL "トップページ"
+    -- . set tagsL ["Hakyll, ""Website"]
+    . set modifiedDatesL ["2020-12-16"]
+    . set webpageBodyL indexBody
+    $ def
 
-  section_ $ do
-    h1_ "記事"
-    linkList [] $ articles indexData
+indexBody :: WebpageBody IndexProtocol ()
+indexBody = do
+  indexData <- view (typed @(IndexProtocol False)) <$> ask
+  section "外部リンク" $
+    hyperlinkList True $ externals indexData
+
+  section "記事" $
+    hyperlinkList False $ articles indexData
