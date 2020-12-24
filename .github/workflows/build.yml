@@ -48,9 +48,9 @@ jobs:
 
       - name: configure git
         run: |
-          git config --global user.name "${GITHUB_USER}"
+          git config --global user.name ${{ github.actor }}
           git config --global user.email "${GITHUB_EMAIL}"
-          git remote set-url origin git@github.com${GITHUB_REPOSITORY}.git
+          git remote set-url origin https://${{ github.actor }}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
       - name: add and commit
         run: |
