@@ -513,7 +513,7 @@ webpageCommon webpage =
                 header "linguiniの✨ブログ✨"
                 main_ $ view webpageBodyL webpage
                 form_ [method_ "POST", action_ "https://staticman-1inguini.herokuapp.com/v2/entry/1inguini/1inguini.github.io/master/comments"] $ do
-                  input_ [name_ "options[slug]", type_ "hidden", value_ "{{ page.slug }}"]
+                  input_ [name_ "options[slug]", type_ "hidden", value_ $ T.pack $ view titleL webpage]
                   label_ $ input_ [name_ "fields[name]", type_ "text"] <> "Name"
                   label_ $ input_ [name_ "fields[email]", type_ "email"] <> "E-Mail(Optional)"
                   label_ $ input_ [name_ "fields[message]", type_ "text"] <> "Message"
