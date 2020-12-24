@@ -535,7 +535,7 @@ webpageCommon webpage =
                 main_ $ view webpageBodyL webpage
                 section "コメント欄" $
                   form_
-                    [ onsubmit_ "document.getElementById(\"commentTextarea\").value=''; return false;",
+                    [ -- onsubmit_ "document.getElementById(\"commentTextarea\").value=''; return false;",
                       method_ "POST",
                       action_ "https://staticman-1inguini.herokuapp.com/v2/entry/1inguini/1inguini.github.io/master/comments"
                     ]
