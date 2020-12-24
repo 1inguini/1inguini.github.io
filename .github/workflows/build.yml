@@ -55,5 +55,5 @@ jobs:
       - name: add and commit
         run: |
           git add --verbose docs
-          git commit -m "(⋈◍＞◡＜◍)。✧♡ automatic build by GitHub Actions"
+          git commit --allow-empty -m "(⋈◍＞◡＜◍)。✧♡ automatic build by GitHub Actions"
           git push origin master
