@@ -8,8 +8,8 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'pages'
-      - 'posts'
+      - 'pages/**'
+      - 'posts/**'
   # pull_request:
   #   branches: [ master ]
 
