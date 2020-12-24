@@ -44,7 +44,7 @@ jobs:
         run: stack --system-ghc build
 
       - name: execute generator
-        run: stack --system-ghc exec generator build
+        run: stack --system-ghc exec generator rebuild
 
       - name: configure git
         run: |
