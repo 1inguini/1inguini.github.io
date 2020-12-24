@@ -1,0 +1,59 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Hakyll build
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+    paths:
+      - 'pages'
+      - 'posts'
+  # pull_request:
+  #   branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v2
+      - uses: haskell/actions/setup@v1
+        with:
+          ghc-version: '8.8.4' # Exact version of ghc to use
+          # cabal-version: 'latest'. Omitted, but defalts to 'latest'
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache ~/.stack
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-stack
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ env.cache-name }}-${{ hashFiles('stack.yaml') }}
+
+      - name: build generator
+        run: stack --system-ghc build --only-dependencies
+
+      - name: execute generator
+        run: stack exec generator build
+
+      - name: configure git
+        run: |
+          git config --local user.name "${GITHUB_USER}"
+          git config --local user.email "${GITHUB_EMAIL}"
+          git remote set-url origin git@github.com${GITHUB_REPOSITORY}.git
+
+      - name: add and commit
+        run: |
+          git add --verbose docs
+          git commit -m "(⋈◍＞◡＜◍)。✧♡ automatic build by GitHub Actions"
+          git push origin master

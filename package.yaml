@@ -56,8 +56,6 @@ default-extensions:
 - NoImplicitPrelude
 
 
-
-
 library:
   source-dirs:
   - templates
@@ -67,7 +65,7 @@ library:
     other-modules: Paths_1inguini_github_io
 
 executables:
-  site:
+  generator:
     main:                Main.hs
     source-dirs:         .
     ghc-options:
