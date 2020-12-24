@@ -382,6 +382,12 @@ instance HasHeaderLevel (WebpageEnv protocol) where
 instance HasAnnotationIndex (WebpageEnv protocol) where
   annotationIndexL = typed @WebpageEnvInternal % annotationIndexL
 
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasFileContentsResponse (WebpageEnv protocol)
+  where
+  fileContentsL = typed @(protocol False) % fileContentsL
+
 -- instance Default (WebpageEnv IndexPage) where
 --   def = mkDefaultWebpageEnv def
 
@@ -415,23 +421,32 @@ h_ headerText body =
         L.genericIndex hOfLevel index [] headerText
         body
 
+-- header ::
+--   ( MonadReader env m,
+--     HasHeaderLevel env,
+--     Term [Attribute] (m () -> m ()),
+--     Term (m ()) (m ())
+--   ) =>
+--   (m () -> m ())
 header ::
-  ( MonadReader env m,
-    HasHeaderLevel env,
-    Term [Attribute] (m () -> m ()),
-    Term (m ()) (m ())
-  ) =>
-  (m () -> m ())
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (WebpageBody protocol () -> WebpageBody protocol ())
 header headerText = header_ [] $ h_ headerText (pure ())
 
+-- section ::
+--   (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+--   (m a -> m a -> m a)
 section ::
-  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
-  (m a -> m a -> m a)
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (WebpageBody protocol () -> WebpageBody protocol () -> WebpageBody protocol ())
 section headerText body = section_ [] $ h_ headerText body
 
+-- paragraph ::
+--   (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+--   (m a -> m a)
 paragraph ::
-  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
-  (m a -> m a)
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (WebpageBody protocol () -> WebpageBody protocol ())
 paragraph = p_ []
 
 deriving instance Generic FeedConfiguration
@@ -501,23 +516,35 @@ webpageCommon webpage =
 
 type Link = (FilePath, String)
 
-hyperlinkInternal :: Term [Attribute] result => Text -> result
+-- hyperlinkInternal :: Term [Attribute] result => Text -> result
+hyperlinkInternal ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (Text -> WebpageBody protocol () -> WebpageBody protocol ())
 hyperlinkInternal l = a_ [href_ l]
 
-hyperlink :: Term [Attribute] result => Text -> result
+-- hyperlink :: Term [Attribute] result => Text -> result
+hyperlink ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (Text -> WebpageBody protocol () -> WebpageBody protocol ())
 hyperlink l = a_ (href_ l : newTabAttr)
 
 newTabAttr :: [Attribute]
 newTabAttr = [target_ "_blank", rel_ "noreferrer noopener"]
 
-hyperlinkEcho :: Text -> WebpageBody protocol ()
+hyperlinkEcho ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (Text -> WebpageBody protocol ())
 hyperlinkEcho l = hyperlink l $ toWebpageBodyRaw l
 
-hyperlinkGitHub :: Text -> WebpageBody protocol ()
+hyperlinkGitHub ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (Text -> WebpageBody protocol ())
 hyperlinkGitHub repo =
   a_ (href_ (https "github.com/" <> repo) : newTabAttr) $ toWebpageBodyRaw repo
 
-hyperlinkList :: Foldable t => Bool -> t Link -> WebpageBody protocol ()
+hyperlinkList ::
+  (Foldable t, WebpageHakyllDataExchangeProtocol protocol) =>
+  (Bool -> t Link -> WebpageBody protocol ())
 hyperlinkList isExternal ls =
   ul_ $
     mapM_
@@ -526,7 +553,10 @@ hyperlinkList isExternal ls =
       )
       ls
 
+-- code ::
+--   (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
+--   (m a -> m a)
 code ::
-  (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
-  (m a -> m a)
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (WebpageBody protocol () -> WebpageBody protocol ())
 code = code_

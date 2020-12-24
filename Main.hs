@@ -6,6 +6,7 @@ import qualified Language.Haskell.Interpreter as Hint
 import Lucid (Html, renderBS)
 import qualified RIO.ByteString.Lazy as BL
 import qualified RIO.Char as C
+import RIO.FilePath
 import qualified RIO.List as L
 import qualified RIO.Process as Proc (byteStringInput, readProcess_, setStdin)
 import qualified RIO.Text.Lazy as Text
@@ -104,13 +105,16 @@ main =
               blogPost <- interpret "post" (Hint.as :: Webpage ArticleProtocol)
               makeItem (path, view webpageCommonDataL blogPost)
                 >>= saveSnapshot pathAndWebpageData
+              srcDir <- takeDirectory <$> getResourceFilePath
               requestedFiles <-
                 mapM
-                  (loadBody . fromFilePath :: FilePath -> Compiler String)
+                  (loadBody . fromFilePath . (srcDir </>) :: FilePath -> Compiler String)
                   $ view fileRequestsL blogPost
               webpageCompiler
                 (def {fileContents = requestedFiles} :: ArticleProtocol False)
                 $ view webpageBodyL blogPost
+
+          match postsHtml $ compile getResourceBody
 
 webpageCompiler ::
   WebpageHakyllDataExchangeProtocol protocol =>

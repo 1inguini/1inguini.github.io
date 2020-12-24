@@ -5,6 +5,7 @@ module Share
     module GHC.Generics,
     module Optics,
     module RIO,
+    module RIO.List,
   )
 where
 
@@ -29,3 +30,4 @@ import RIO hiding
     (^..),
     (^?),
   )
+import RIO.List hiding (uncons)
