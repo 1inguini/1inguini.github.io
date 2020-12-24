@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Binary (decode)
 import Hakyll
 import Language.Haskell.Interpreter (OptionVal ((:=)))
 import qualified Language.Haskell.Interpreter as Hint
@@ -9,6 +10,7 @@ import qualified RIO.Char as C
 import RIO.FilePath
 import qualified RIO.List as L
 import qualified RIO.Process as Proc (byteStringInput, readProcess_, setStdin)
+import qualified RIO.Text as T
 import qualified RIO.Text.Lazy as Text
 import Share
 import System.IO (hPutStrLn)
@@ -55,11 +57,11 @@ feedContext page =
         fromMaybe "Error: modifiedDates empty" $
           safeGetElement $ view modifiedDatesL page
    in mconcat
-        [ constField "title" $ view titleL page,
-          constField "description" $ view descriptionL page,
-          constField "published" $
+        [ constField "title" . T.unpack $ view titleL page,
+          constField "description" . T.unpack $ view descriptionL page,
+          constField "published" . T.unpack $
             fromMaybeEmptyModifiedDates L.headMaybe,
-          constField "updated" $
+          constField "updated" . T.unpack $
             fromMaybeEmptyModifiedDates L.lastMaybe,
           -- constField "body" $ body page,
           defaultContext
@@ -108,13 +110,13 @@ main =
               srcDir <- takeDirectory <$> getResourceFilePath
               requestedFiles <-
                 mapM
-                  (loadBody . fromFilePath . (srcDir </>) :: FilePath -> Compiler String)
+                  (loadBody . fromFilePath . (srcDir </>) :: FilePath -> Compiler BL.ByteString)
                   $ view fileRequestsL blogPost
               webpageCompiler
-                (def {fileContents = requestedFiles} :: ArticleProtocol False)
+                (def {url = T.pack path, fileContents = requestedFiles} :: ArticleProtocol False)
                 $ view webpageBodyL blogPost
 
-          match postsHtml $ compile getResourceBody
+          match postsHtml $ compile getResourceLBS
 
 webpageCompiler ::
   WebpageHakyllDataExchangeProtocol protocol =>

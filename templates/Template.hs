@@ -61,19 +61,24 @@ import qualified RIO.Text as T
 import RIO.Time
 import Share
 
+class HasUrl a where
+  urlL :: Lens' a Text
+  default urlL :: HasField' "url" a Text => Lens' a Text
+  urlL = field' @"url"
+
 class HasTitle a where
-  titleL :: Lens' a String
-  default titleL :: HasField' "title" a String => Lens' a String
+  titleL :: Lens' a Text
+  default titleL :: HasField' "title" a Text => Lens' a Text
   titleL = field' @"title"
 
 class HasDescription a where
-  descriptionL :: Lens' a String
-  default descriptionL :: HasField' "description" a String => Lens' a String
+  descriptionL :: Lens' a Text
+  default descriptionL :: HasField' "description" a Text => Lens' a Text
   descriptionL = field' @"description"
 
 class HasModifiedDates a where
-  modifiedDatesL :: Lens' a [String]
-  default modifiedDatesL :: HasField' "modifiedDates" a [String] => Lens' a [String]
+  modifiedDatesL :: Lens' a [Text]
+  default modifiedDatesL :: HasField' "modifiedDates" a [Text] => Lens' a [Text]
   modifiedDatesL = field' @"modifiedDates"
 
 class HasWebpageBody (protocol :: Bool -> *) a where
@@ -113,13 +118,13 @@ class HasFileContentsRequest hasRequest where
   fileRequestsL = field' @"fileRequests"
 
 class HasFileContentsResponse hasResponse where
-  fileContentsL :: Lens' hasResponse [String]
-  default fileContentsL :: HasField' "fileContents" hasResponse [String] => Lens' hasResponse [String]
+  fileContentsL :: Lens' hasResponse [BL.ByteString]
+  default fileContentsL :: HasField' "fileContents" hasResponse [BL.ByteString] => Lens' hasResponse [BL.ByteString]
   fileContentsL = field' @"fileContents"
 
 class HasTags a where
-  tagsL :: Lens' a [String]
-  default tagsL :: HasField' "tags" a [String] => Lens' a [String]
+  tagsL :: Lens' a [Text]
+  default tagsL :: HasField' "tags" a [Text] => Lens' a [Text]
   tagsL = field' @"tags"
 
 data Webpage (protocol :: Bool -> *) = Webpage
@@ -214,14 +219,15 @@ renderWebpageBody env body =
 
 class
   ( HasWebpageCommonData (protocol True),
+    HasUrl (protocol False),
     HasFileContentsResponse (protocol False)
   ) =>
   WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
 
 data WebpageCommonData = WebpageCommonData
-  { title :: String,
-    description :: String,
-    modifiedDates :: [String] -- older first iso8601
+  { title :: Text,
+    description :: Text,
+    modifiedDates :: [Text] -- older first iso8601
   }
   deriving (Show, Generic)
 
@@ -239,11 +245,11 @@ instance WebpageHakyllDataExchangeProtocol ArticleProtocol
 data family ArticleProtocol (isFromWebpage :: Bool)
 
 data instance ArticleProtocol True = FromArticle
-  { title :: String,
-    description :: String,
-    modifiedDates :: [String],
-    tags :: [String],
-    fileRequests :: [String]
+  { title :: Text,
+    description :: Text,
+    modifiedDates :: [Text],
+    tags :: [Text],
+    fileRequests :: [FilePath]
   }
   deriving (Show, Eq, Generic)
 
@@ -264,13 +270,16 @@ instance Binary (ArticleProtocol True)
 instance Default (ArticleProtocol True) where
   def = FromArticle mempty mempty mempty mempty mempty
 
-newtype instance ArticleProtocol False = ToArticle
-  { fileContents :: [String]
+data instance ArticleProtocol False = ToArticle
+  { url :: Text,
+    fileContents :: [BL.ByteString]
   }
   deriving (Show, Eq, Generic)
 
 instance Default (ArticleProtocol False) where
-  def = ToArticle mempty
+  def = ToArticle mempty mempty
+
+instance HasUrl (ArticleProtocol False)
 
 instance HasFileContentsResponse (ArticleProtocol False)
 
@@ -282,10 +291,10 @@ instance WebpageHakyllDataExchangeProtocol IndexProtocol
 data family IndexProtocol (isFromWebpage :: Bool)
 
 data instance IndexProtocol True = FromIndex
-  { title :: String,
-    description :: String,
-    modifiedDates :: [String],
-    fileRequests :: [String]
+  { title :: Text,
+    description :: Text,
+    modifiedDates :: [Text],
+    fileRequests :: [FilePath]
   }
   deriving (Show, Eq, Generic)
 
@@ -305,14 +314,17 @@ instance Default (IndexProtocol True) where
   def = FromIndex mempty mempty mempty mempty
 
 data instance IndexProtocol False = ToIndex
-  { externals :: [Link],
+  { url :: Text,
+    externals :: [Link],
     articles :: [Link],
-    fileContents :: [String]
+    fileContents :: [BL.ByteString]
   }
   deriving (Show, Eq, Generic)
 
 instance Default (IndexProtocol False) where
-  def = ToIndex mempty mempty mempty
+  def = ToIndex mempty mempty mempty mempty
+
+instance HasUrl (IndexProtocol False)
 
 instance HasFileContentsResponse (IndexProtocol False)
 
@@ -384,6 +396,12 @@ instance HasAnnotationIndex (WebpageEnv protocol) where
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
+  HasUrl (WebpageEnv protocol)
+  where
+  urlL = typed @(protocol False) % urlL
+
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
   HasFileContentsResponse (WebpageEnv protocol)
   where
   fileContentsL = typed @(protocol False) % fileContentsL
@@ -405,6 +423,8 @@ mkDefaultWebpageEnv toWebpage =
     }
 
 siteName = "linguiniのブログ"
+
+siteRoot = https "1inguini.github.io/"
 
 https :: (IsString s, Semigroup s) => s -> s
 https = (<>) "https://"
@@ -501,8 +521,8 @@ webpageCommon webpage =
                 title_ $ toWebpageBodyRaw $ view titleL webpage
                 og "site_name" siteName
                 og "image" "https://avatars0.githubusercontent.com/u/42938754?s=400&v=4"
-                og "title" $ T.pack $ view titleL webpage
-                og "description" $ T.pack $ view descriptionL webpage
+                og "title" $ view titleL webpage
+                og "description" $ view descriptionL webpage
                 meta_ [name_ "twitter:card", content_ "summary"]
                 meta_ [name_ "linguini", content_ "blog"]
                 meta_ [name_ "generator", content_ "Hakyll"]
@@ -514,16 +534,22 @@ webpageCommon webpage =
                 header "linguiniの✨ブログ✨"
                 main_ $ view webpageBodyL webpage
                 section "コメント欄" $
-                  form_ [method_ "POST", action_ "https://staticman-1inguini.herokuapp.com/v2/entry/1inguini/1inguini.github.io/master/comments"] $ do
-                    input_ [name_ "options[title]", type_ "hidden", value_ $ T.pack $ view titleL webpage]
-                    label_ $ "ハンドルネーム" <> input_ [name_ "fields[name]", type_ "text"]
-                    label_ $ "E-Mail(Optional)" <> input_ [name_ "fields[email]", type_ "email"]
-                    textarea_ [name_ "fields[message]", rows_ "10", cols_ "100", placeholder_ "マサカリを投げる"] (pure ()) :: WebpageBody protocol ()
-                    button_ [type_ "submit"] "送信" :: WebpageBody protocol ()
+                  form_
+                    [ onsubmit_ "document.getElementById(\"commentTextarea\").value=''; return false;",
+                      method_ "POST",
+                      action_ "https://staticman-1inguini.herokuapp.com/v2/entry/1inguini/1inguini.github.io/master/comments"
+                    ]
+                    $ do
+                      input_ [name_ "options[title]", type_ "hidden", value_ $ view titleL webpage]
+                      url <- view urlL <$> ask
+                      label_ $ "ハンドルネーム" <> input_ [name_ "fields[name]", type_ "text"]
+                      label_ $ "E-Mail(Optional)" <> input_ [name_ "fields[email]", type_ "email"]
+                      textarea_ [id_ "commentTextarea", name_ "fields[message]", rows_ "10", cols_ "100", placeholder_ "マサカリを投げる"] (pure ()) :: WebpageBody protocol ()
+                      button_ [type_ "submit"] "送信" :: WebpageBody protocol ()
                 footer_ $ "Copyright: © 2020 linguini. Site proudly generated by " <> hyperlink "http://jaspervdj.be/hakyll" "Hakyll" <> ". Visit the site repository from " <> hyperlink "https://github.com/1inguini/1inguini.github.io" "here" <> "."
         }
 
-type Link = (FilePath, String)
+type Link = (FilePath, Text)
 
 -- hyperlinkInternal :: Term [Attribute] result => Text -> result
 hyperlinkInternal ::
