@@ -41,10 +41,10 @@ jobs:
           key: ${{ runner.os }}-stack-${{ env.cache-name }}-${{ hashFiles('stack.yaml') }}
 
       - name: build generator
-        run: stack --system-ghc build --only-dependencies
+        run: stack --system-ghc build
 
       - name: execute generator
-        run: stack exec generator build
+        run: stack --system-ghc exec generator build
 
       - name: configure git
         run: |
