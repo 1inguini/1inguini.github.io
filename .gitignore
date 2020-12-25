@@ -21,6 +21,8 @@ _cache/
 _site/
 *.cabal
 
+docs/
+
 ### emacs ###
 *~
 \#*

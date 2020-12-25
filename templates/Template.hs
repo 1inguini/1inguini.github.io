@@ -552,16 +552,17 @@ webpageCommon webpage =
                 -- link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"]
                 link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css"]
               body_ $ do
-                hyperlinkHeader "" "linguiniの✨ブログ✨"
+                hyperlinkHeader "/" "linguiniの✨ブログ✨"
                 main_ $ view webpageBodyL webpage
                 section "コメント欄" $ do
                   postDir <- T.pack . dropFileName . view pathL <$> ask
                   form_
                     [ onsubmit_ $
                         T.unlines
-                          [ "var message = this.message.value;",
-                            "this.message.value='';",
-                            "this.message.placeholder='コメント送信中...';",
+                          [ "var form = this;",
+                            "var message = form.message.value;",
+                            "form.message.value='';",
+                            "form.message.placeholder='コメント送信中...';",
                             "var req = new XMLHttpRequest ();",
                             "",
                             "req.open(",
@@ -576,18 +577,22 @@ webpageCommon webpage =
                             ");",
                             "",
                             "req.onreadystatechange = function() {",
-                            "  if (this.readyState === XMLHttpRequest.DONE && this.status == 200) {",
-                            "    this.message.placeholder='マサカリを投げる';",
+                            "  if (this.readyState === XMLHttpRequest.DONE){",
+                            "    if (this.status == 200) {",
+                            "      form.message.placeholder='マサカリを投げる';",
+                            "    } else {",
+                            "      form.message.placeholder='コメント失敗';",
+                            "    }",
                             "  }",
                             "}",
                             "",
                             "var query =",
                             "  'options[title]=' + encodeURIComponent('" <> view titleL webpage <> "')",
                             "  + '&options[path]=' + encodeURIComponent('" <> postDir <> "')",
-                            "  + '&fields[name]=' + encodeURIComponent(this.name.value)",
+                            "  + '&fields[name]=' + encodeURIComponent(form.name.value)",
                             "  + '&fields[message]=' + encodeURIComponent(message);",
-                            "if (this.twitter.value) {",
-                            "  query += '&fields[twitter]=' + encodeURIComponent(this.twitter.value);",
+                            "if (form.twitter.value) {",
+                            "  query += '&fields[twitter]=' + encodeURIComponent(form.twitter.value);",
                             "}",
                             "req.send(query);",
                             "",
