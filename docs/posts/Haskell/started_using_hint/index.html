@@ -255,9 +255,9 @@
     </main>
     <section>
         <h2>コメント欄</h2>
-        <form onsubmit="var message = this.value;
-this.value=&#39;&#39;;
-this.placeholder=&#39;コメント送信中...&#39;;
+        <form onsubmit="var message = this.message.value;
+this.message.value=&#39;&#39;;
+this.message.placeholder=&#39;コメント送信中...&#39;;
 var req = new XMLHttpRequest ();
 
 req.open(
@@ -273,7 +273,7 @@ req.setRequestHeader(
 
 req.onreadystatechange = function() {
   if (this.readyState === XMLHttpRequest.DONE &amp;&amp; this.status == 200) {
-    this.placeholder=&#39;マサカリを投げる&#39;;
+    this.message.placeholder=&#39;マサカリを投げる&#39;;
   }
 }
 
