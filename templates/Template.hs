@@ -559,9 +559,9 @@ webpageCommon webpage =
                   form_
                     [ onsubmit_ $
                         T.unlines
-                          [ "var message = this.value;",
-                            "this.value='';",
-                            "this.placeholder='コメント送信中...';",
+                          [ "var message = this.message.value;",
+                            "this.message.value='';",
+                            "this.message.placeholder='コメント送信中...';",
                             "var req = new XMLHttpRequest ();",
                             "",
                             "req.open(",
@@ -577,7 +577,7 @@ webpageCommon webpage =
                             "",
                             "req.onreadystatechange = function() {",
                             "  if (this.readyState === XMLHttpRequest.DONE && this.status == 200) {",
-                            "    this.placeholder='マサカリを投げる';",
+                            "    this.message.placeholder='マサカリを投げる';",
                             "  }",
                             "}",
                             "",
