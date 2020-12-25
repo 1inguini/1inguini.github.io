@@ -28,7 +28,6 @@ module Template
     hyperlink,
     hyperlinkEcho,
     hyperlinkGitHub,
-    hyperlinkInternal,
     hyperlinkList,
     mkDefaultWebpageEnv,
     paragraph,
@@ -51,20 +50,22 @@ import Data.String (IsString)
 import Data.Typeable
 import GHC.Base (Symbol)
 import Hakyll (FeedConfiguration (..))
+import Hakyll.Web.Html (isExternal)
 import Lucid hiding (br_, doctypehtml_, input_, link_, meta_, required_)
 import qualified Lucid (br_, doctypehtml_, input_, link_, meta_, required_)
 import qualified Lucid.Base as Lucid (makeAttribute)
 import qualified RIO.ByteString.Lazy as BL
+import RIO.FilePath (dropFileName)
 import qualified RIO.List as L
 import RIO.State
 import qualified RIO.Text as T
 import RIO.Time
 import Share
 
-class HasUrl a where
-  urlL :: Lens' a Text
-  default urlL :: HasField' "url" a Text => Lens' a Text
-  urlL = field' @"url"
+class HasPath a where
+  pathL :: Lens' a FilePath
+  default pathL :: HasField' "path" a FilePath => Lens' a FilePath
+  pathL = field' @"path"
 
 class HasTitle a where
   titleL :: Lens' a Text
@@ -138,6 +139,9 @@ instance Default (Webpage ArticleProtocol) where
 
 instance Default (Webpage IndexProtocol) where
   def = Webpage def def
+
+instance HasTags (Webpage ArticleProtocol) where
+  tagsL = field' @"webpageData" % tagsL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
@@ -219,7 +223,7 @@ renderWebpageBody env body =
 
 class
   ( HasWebpageCommonData (protocol True),
-    HasUrl (protocol False),
+    HasPath (protocol False),
     HasFileContentsResponse (protocol False)
   ) =>
   WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
@@ -271,7 +275,7 @@ instance Default (ArticleProtocol True) where
   def = FromArticle mempty mempty mempty mempty mempty
 
 data instance ArticleProtocol False = ToArticle
-  { url :: Text,
+  { path :: FilePath,
     fileContents :: [BL.ByteString]
   }
   deriving (Show, Eq, Generic)
@@ -279,7 +283,7 @@ data instance ArticleProtocol False = ToArticle
 instance Default (ArticleProtocol False) where
   def = ToArticle mempty mempty
 
-instance HasUrl (ArticleProtocol False)
+instance HasPath (ArticleProtocol False)
 
 instance HasFileContentsResponse (ArticleProtocol False)
 
@@ -314,7 +318,7 @@ instance Default (IndexProtocol True) where
   def = FromIndex mempty mempty mempty mempty
 
 data instance IndexProtocol False = ToIndex
-  { url :: Text,
+  { path :: FilePath,
     externals :: [Link],
     articles :: [Link],
     fileContents :: [BL.ByteString]
@@ -324,7 +328,7 @@ data instance IndexProtocol False = ToIndex
 instance Default (IndexProtocol False) where
   def = ToIndex mempty mempty mempty mempty
 
-instance HasUrl (IndexProtocol False)
+instance HasPath (IndexProtocol False)
 
 instance HasFileContentsResponse (IndexProtocol False)
 
@@ -396,9 +400,9 @@ instance HasAnnotationIndex (WebpageEnv protocol) where
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
-  HasUrl (WebpageEnv protocol)
+  HasPath (WebpageEnv protocol)
   where
-  urlL = typed @(protocol False) % urlL
+  pathL = typed @(protocol False) % pathL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
@@ -453,6 +457,11 @@ header ::
   (WebpageBody protocol () -> WebpageBody protocol ())
 header headerText = header_ [] $ h_ headerText (pure ())
 
+hyperlinkHeader ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (Text -> WebpageBody protocol () -> WebpageBody protocol ())
+hyperlinkHeader url headerText = header $ hyperlink url headerText
+
 -- section ::
 --   (MonadReader env m, HasHeaderLevel env, Term [Attribute] (m a -> m a), Term (m a) (m a)) =>
 --   (m a -> m a -> m a)
@@ -480,7 +489,7 @@ defaultFeedConfig =
       feedDescription = "linguiniがなんか書く",
       feedAuthorName = "linguini",
       feedAuthorEmail = "9647142@gmail.com",
-      feedRoot = "https://1inguini.github.io"
+      feedRoot = siteRoot
     }
 
 doctypehtml_ :: WebpageBody protocol () -> WebpageBody protocol ()
@@ -493,7 +502,7 @@ input_ = WebpageBody . Lucid.input_
 br_ = WebpageBody . Lucid.input_
 
 required_ :: Attribute
-required_ = Lucid.required_ ""
+required_ = Lucid.required_ mempty
 
 prefix_, property_ :: Text -> Attribute
 prefix_ = Lucid.makeAttribute "prefix"
@@ -534,14 +543,17 @@ webpageCommon webpage =
                 -- link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"]
                 link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css"]
               body_ $ do
-                header "linguiniの✨ブログ✨"
+                hyperlinkHeader "" "linguiniの✨ブログ✨"
                 main_ $ view webpageBodyL webpage
-                section "コメント欄" $
+                section "コメント欄" $ do
+                  postDir <- T.pack . dropFileName . view pathL <$> ask
                   form_
                     [ name_ "commentForm",
                       onsubmit_ $
                         T.unlines
-                          [ "document.getElementById(\"commentTextarea\").placeholder='マサカリを投げる';",
+                          [ "var message = document.getElementById(\"commentTextarea\").value;",
+                            "document.getElementById(\"commentTextarea\").value='';",
+                            "document.getElementById(\"commentTextarea\").placeholder='コメント送信中...';",
                             "var req = new XMLHttpRequest ();",
                             "",
                             "req.open(",
@@ -558,18 +570,17 @@ webpageCommon webpage =
                             "req.onreadystatechange = function() {",
                             "  if (this.readyState === XMLHttpRequest.DONE && this.status == 200) {",
                             "    document.getElementById(\"commentTextarea\").placeholder='マサカリを投げる';",
-                            "  }else{",
-                            "    document.getElementById(\"commentTextarea\").value='';",
-                            "    document.getElementById(\"commentTextarea\").placeholder='コメント送信中...';",
                             "  }",
                             "}",
                             "",
-                            "var query = 'options[title]=' + encodeURIComponent('" <> view titleL webpage <> "')",
+                            "var query =",
+                            "  'options[title]=' + encodeURIComponent('" <> view titleL webpage <> "')",
+                            "  + '&options[path]=' + encodeURIComponent('" <> postDir <> "')",
                             "  + '&fields[name]=' + encodeURIComponent(document.commentForm.name.value)",
-                            "  + '&fields[message]=' + encodeURIComponent(document.commentForm.message.value);",
-                            -- "if (document.commentForm.email.value) {",
-                            -- "  query += '&fields[email]=' + encodeURIComponent(document.commentForm.email.value);",
-                            -- "}",
+                            "  + '&fields[message]=' + encodeURIComponent(message);",
+                            "if (document.commentForm.email.value) {",
+                            "  query += '&fields[twitter]=' + encodeURIComponent(document.commentForm.twitter.value);",
+                            "}",
                             "req.send(query);",
                             "",
                             "return false;"
@@ -577,25 +588,23 @@ webpageCommon webpage =
                     ]
                     $ do
                       label_ $ "ハンドルネーム" <> input_ [name_ "name", type_ "text", required_]
-                      -- label_ $ "E-Mail(Optional)" <> input_ [name_ "email", type_ "email"]
-                      textarea_ [id_ "commentTextarea", name_ "message", rows_ "10", cols_ "100", required_] (pure ()) :: WebpageBody protocol ()
+                      label_ $ "twitter垢(任意)" <> input_ [name_ "twitter", type_ "text", placeholder_ "@1inguini", pattern_ "^@(\\w{1,15})$"]
+                      textarea_ [id_ "commentTextarea", name_ "message", rows_ "10", cols_ "100", placeholder_ "マサカリを投げる", required_] (pure ()) :: WebpageBody protocol ()
                       button_ [type_ "submit"] "送信" :: WebpageBody protocol ()
                 footer_ $ "Copyright: © 2020 linguini. Site proudly generated by " <> hyperlink "http://jaspervdj.be/hakyll" "Hakyll" <> ". Visit the site repository from " <> hyperlink "https://github.com/1inguini/1inguini.github.io" "here" <> "."
         }
 
 type Link = (FilePath, Text)
 
--- hyperlinkInternal :: Term [Attribute] result => Text -> result
-hyperlinkInternal ::
-  WebpageHakyllDataExchangeProtocol protocol =>
-  (Text -> WebpageBody protocol () -> WebpageBody protocol ())
-hyperlinkInternal l = a_ [href_ l]
-
 -- hyperlink :: Term [Attribute] result => Text -> result
+
+-- | external link when True
 hyperlink ::
   WebpageHakyllDataExchangeProtocol protocol =>
   (Text -> WebpageBody protocol () -> WebpageBody protocol ())
-hyperlink l = a_ (href_ l : newTabAttr)
+hyperlink url
+  | isExternal $ T.unpack url = a_ (href_ url : newTabAttr)
+  | otherwise = a_ [href_ url]
 
 newTabAttr :: [Attribute]
 newTabAttr = [target_ "_blank", rel_ "noreferrer noopener"]
@@ -603,22 +612,22 @@ newTabAttr = [target_ "_blank", rel_ "noreferrer noopener"]
 hyperlinkEcho ::
   WebpageHakyllDataExchangeProtocol protocol =>
   (Text -> WebpageBody protocol ())
-hyperlinkEcho l = hyperlink l $ toWebpageBodyRaw l
+hyperlinkEcho url = hyperlink url $ toWebpageBody url
 
 hyperlinkGitHub ::
   WebpageHakyllDataExchangeProtocol protocol =>
   (Text -> WebpageBody protocol ())
 hyperlinkGitHub repo =
-  a_ (href_ (https "github.com/" <> repo) : newTabAttr) $ toWebpageBodyRaw repo
+  hyperlink (https "github.com/" <> repo) $ toWebpageBody repo
 
 hyperlinkList ::
   (Foldable t, WebpageHakyllDataExchangeProtocol protocol) =>
-  (Bool -> t Link -> WebpageBody protocol ())
-hyperlinkList isExternal ls =
+  (t Link -> WebpageBody protocol ())
+hyperlinkList ls =
   ul_ $
     mapM_
       ( \(path, desc) ->
-          li_ $ a_ (href_ (T.pack path) : (if isExternal then newTabAttr else [])) (toWebpageBodyRaw desc)
+          li_ $ hyperlink (T.pack path) (toWebpageBodyRaw desc)
       )
       ls
 

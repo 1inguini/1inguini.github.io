@@ -16,14 +16,11 @@ import Share
 import System.IO (hPutStrLn)
 import Template
 
-postsDir = "posts/*/"
+postsDir = "posts/*/*/"
 
-postsHaskell = fromGlob $ postsDir <> "*.hs"
+postsHaskell = fromGlob $ postsDir <> "index.hs"
 
-postsHtml = fromGlob $ postsDir <> "*.html"
-
-redirectsDir :: IsString s => s
-redirectsDir = "redirects"
+htmls = "**/*.html"
 
 defaultIndexData :: IndexProtocol False
 defaultIndexData =
@@ -113,10 +110,10 @@ main =
                   (loadBody . fromFilePath . (srcDir </>) :: FilePath -> Compiler BL.ByteString)
                   $ view fileRequestsL blogPost
               webpageCompiler
-                (def {url = T.pack path, fileContents = requestedFiles} :: ArticleProtocol False)
+                (def {path = path, fileContents = requestedFiles} :: ArticleProtocol False)
                 $ view webpageBodyL blogPost
 
-          match postsHtml $ compile getResourceLBS
+          match htmls $ compile getResourceLBS
 
 webpageCompiler ::
   WebpageHakyllDataExchangeProtocol protocol =>

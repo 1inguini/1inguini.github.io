@@ -23,7 +23,7 @@ indexBody :: WebpageBody IndexProtocol ()
 indexBody = do
   indexData <- view (typed @(IndexProtocol False)) <$> ask
   section "外部リンク" $
-    hyperlinkList True $ externals indexData
+    hyperlinkList $ externals indexData
 
   section "記事" $
-    hyperlinkList False $ articles indexData
+    hyperlinkList $ articles indexData
