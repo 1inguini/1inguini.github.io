@@ -559,7 +559,7 @@ webpageCommon webpage =
                   form_
                     [ onsubmit_ $
                         T.unlines
-                          [ "var message = this.value;",
+                          [ "var message = this.message.value;",
                             "this.value='';",
                             "this.placeholder='コメント送信中...';",
                             "var req = new XMLHttpRequest ();",
