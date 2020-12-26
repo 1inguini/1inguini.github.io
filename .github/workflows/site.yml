@@ -32,9 +32,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: executable last modified timestamp
-        id: timestamp
-        run: echo "::set-output modified="$(stat --format="%Y" $(find ./.stack-work -name LICENSE))
+      # - name: executable last modified timestamp
+      #   id: timestamp
+      #   run: echo "::set-output modified="$(stat --format="%Y" $(find ./.stack-work -name LICENSE))
 
       - name: use cache ~/.stack
         uses: actions/cache@v2
@@ -68,4 +68,4 @@ jobs:
         run: |
           git add -f --verbose docs
           git commit --allow-empty -m "(⋈◍＞◡＜◍)。✧♡ automatic build by GitHub Actions"
-          git push origin master
+          git push origin gh-pages
