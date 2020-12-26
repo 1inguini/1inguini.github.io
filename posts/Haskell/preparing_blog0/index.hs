@@ -14,7 +14,7 @@ post =
   webpageCommon . articleCommon
     . set titleL "ブログ準備中その0"
     . set descriptionL "HakyllとLucidでブログ書き始めたよ"
-    -- . set tagsL ["Hakyll, ""Website"]
+    . set tagsL ["Hakyll", "Website"]
     . set modifiedDatesL ["2020-12-16"]
     . set webpageBodyL postBody
     $ def

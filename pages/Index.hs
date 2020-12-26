@@ -14,7 +14,6 @@ index =
   webpageCommon . articleCommon
     . set titleL "Index"
     . set descriptionL "トップページ"
-    -- . set tagsL ["Hakyll, ""Website"]
     . set modifiedDatesL ["2020-12-16"]
     . set webpageBodyL indexBody
     $ def
