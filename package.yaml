@@ -45,7 +45,7 @@ default-extensions:
 - FlexibleInstances
 - DuplicateRecordFields
 - GADTs
-- GeneralisedNewtypeDeriving
+- GeneralizedNewtypeDeriving
 - MultiParamTypeClasses
 - OverloadedStrings
 - ScopedTypeVariables
@@ -58,7 +58,6 @@ default-extensions:
 
 library:
   source-dirs:
-  - templates
   - src
   when:
   - condition: false

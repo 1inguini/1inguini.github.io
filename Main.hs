@@ -14,7 +14,6 @@ import qualified RIO.Text as T
 import qualified RIO.Text.Lazy as Text
 import Share
 import System.IO (hPutStrLn)
-import Template
 
 postsDir = "posts/*/*/"
 
@@ -147,13 +146,25 @@ interpret code as = do
       Hint.runInterpreter $ do
         Hint.set
           [ Hint.languageExtensions
-              := [ Hint.NoImplicitPrelude,
+              := [ Hint.DataKinds,
+                   Hint.DefaultSignatures,
+                   Hint.DeriveGeneric,
+                   Hint.ExistentialQuantification,
+                   Hint.FlexibleContexts,
+                   Hint.FlexibleInstances,
+                   Hint.DuplicateRecordFields,
+                   Hint.GADTs,
+                   Hint.GeneralizedNewtypeDeriving,
+                   Hint.MultiParamTypeClasses,
                    Hint.OverloadedStrings,
+                   Hint.ScopedTypeVariables,
+                   Hint.StandaloneDeriving,
+                   Hint.TypeFamilies,
                    Hint.TypeApplications,
-                   Hint.DataKinds
+                   Hint.NoImplicitPrelude
                  ]
           ]
-        Hint.loadModules [filepath]
+        Hint.loadModules [filepath, "templates/Template.hs"]
         Hint.setTopLevelModules ["Main"]
         Hint.setImports ["Share", "Template"]
         Hint.interpret expr as
