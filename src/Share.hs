@@ -7,6 +7,7 @@ module Share
     module RIO,
     module RIO.List,
     HasAnnotationIndex (..),
+    HasComments (..),
     HasDescription (..),
     HasFileContentsRequest (..),
     HasFileContentsResponse (..),
@@ -15,15 +16,19 @@ module Share
     HasPath (..),
     HasTags (..),
     HasTitle (..),
+    HasFromWebpageCommon (..),
+    HasToWebpageCommon (..),
     HasWebpageBody (..),
-    HasWebpageCommonData (..),
     WebpageHakyllDataExchangeProtocol (..),
-    ArticleProtocol (..),
-    IndexProtocol (..),
+    ArticleProtocol (FromArticle, ToArticle),
+    CommonProtocol (FromWebpage, ToWebpage),
+    IndexProtocol (FromIndex, ToIndex, externals, articles),
+    Comment (..),
     Webpage (..),
     WebpageBody (..),
-    WebpageCommonData (..),
     WebpageEnv (..),
+    CommentId (..),
+    Comments (..),
     Link (..),
     defaultFeedConfig,
     https,
@@ -35,11 +40,14 @@ module Share
   )
 where
 
+import Data.Aeson ((.:))
+import qualified Data.Aeson as Aeson
 import Data.Binary (Binary)
 import Data.Default.Class
 import Data.Generics.Product
 import Data.Typeable
-import GHC.Base (Symbol)
+import Foreign.C.Types (CTime (..))
+import GHC.Base (Constraint, Symbol)
 import GHC.Generics (Generic)
 import Hakyll (FeedConfiguration (..))
 import Lucid (Attribute, HtmlT, Term (..), ToHtml (..), renderBST)
@@ -63,6 +71,7 @@ import RIO hiding
   )
 import qualified RIO.ByteString.Lazy as BL
 import RIO.List hiding (uncons)
+import System.Posix.Types (EpochTime)
 
 class HasPath a where
   pathL :: Lens' a FilePath
@@ -97,13 +106,26 @@ class
     HasModifiedDates a,
     HasFileContentsRequest a
   ) =>
-  HasWebpageCommonData a
+  HasFromWebpageCommon a
   where
-  webpageCommonDataL :: Lens' a WebpageCommonData
+  webpageCommonDataL :: Lens' a (CommonProtocol True)
   default webpageCommonDataL ::
-    (Generic a, Subtype WebpageCommonData a) =>
-    Lens' a WebpageCommonData
-  webpageCommonDataL = super @WebpageCommonData
+    (Generic a, Subtype (CommonProtocol True) a) =>
+    Lens' a (CommonProtocol True)
+  webpageCommonDataL = super @(CommonProtocol True)
+
+class
+  ( HasPath a,
+    HasComments a,
+    HasFileContentsResponse a
+  ) =>
+  HasToWebpageCommon a
+  where
+  hakyllCommonDataL :: Lens' a (CommonProtocol False)
+  default hakyllCommonDataL ::
+    (Generic a, Subtype (CommonProtocol False) a) =>
+    Lens' a (CommonProtocol False)
+  hakyllCommonDataL = super @(CommonProtocol False)
 
 class HasHeaderLevel env where
   headerLevelL :: Lens' env Int
@@ -125,6 +147,11 @@ class HasFileContentsResponse hasResponse where
   default fileContentsL :: HasField' "fileContents" hasResponse [BL.ByteString] => Lens' hasResponse [BL.ByteString]
   fileContentsL = field' @"fileContents"
 
+class HasComments a where
+  commentsL :: Lens' a Comments
+  default commentsL :: HasField' "comments" a Comments => Lens' a Comments
+  commentsL = field' @"comments"
+
 class HasTags a where
   tagsL :: Lens' a [Text]
   default tagsL :: HasField' "tags" a [Text] => Lens' a [Text]
@@ -143,37 +170,37 @@ instance Default (Webpage IndexProtocol) where
   def = Webpage def def
 
 instance HasTags (Webpage ArticleProtocol) where
-  tagsL = field' @"webpageData" % tagsL
+  tagsL = typed @(ArticleProtocol True) % tagsL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
   HasTitle (Webpage protocol)
   where
-  titleL = field' @"webpageData" % titleL
+  titleL = typed @(protocol True) % titleL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
   HasModifiedDates (Webpage protocol)
   where
-  modifiedDatesL = field' @"webpageData" % modifiedDatesL
+  modifiedDatesL = typed @(protocol True) % modifiedDatesL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
   HasDescription (Webpage protocol)
   where
-  descriptionL = field' @"webpageData" % descriptionL
+  descriptionL = typed @(protocol True) % descriptionL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
   HasFileContentsRequest (Webpage protocol)
   where
-  fileRequestsL = field' @"webpageData" % fileRequestsL
+  fileRequestsL = typed @(protocol True) % fileRequestsL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>
-  HasWebpageCommonData (Webpage protocol)
+  HasFromWebpageCommon (Webpage protocol)
   where
-  webpageCommonDataL = field' @"webpageData" % webpageCommonDataL
+  webpageCommonDataL = typed @(protocol True) % webpageCommonDataL
 
 instance HasWebpageBody protocol (Webpage protocol)
 
@@ -187,7 +214,8 @@ instance HasWebpageBody protocol (Webpage protocol)
 --   fileContentsRequestL :: Lens' hasRequests (protocol FilePath)
 --   fileContentsL :: Lens' hasResposes (protocol String)
 
-newtype WebpageBody (protocol :: Bool -> *) a = WebpageBody {runWebpageBody :: HtmlT (Reader (WebpageEnv protocol)) a}
+newtype WebpageBody (protocol :: Bool -> *) a = WebpageBody
+  {runWebpageBody :: HtmlT (Reader (WebpageEnv protocol)) a}
   deriving (Generic, Functor, Applicative, Monad, MonadReader (WebpageEnv protocol))
 
 deriving instance Semigroup (WebpageBody protocol ())
@@ -219,31 +247,75 @@ renderWebpageBody env body =
     & renderBST
     & (`runReader` env)
 
--- class WebpageHakyllDataExchangeProtocol (protocol :: Webprotocol) where
---   data FromWebpage protocol :: *
---   data ToWebpage protocol :: *
-
 class
-  ( HasWebpageCommonData (protocol True),
-    HasPath (protocol False),
-    HasFileContentsResponse (protocol False)
+  ( HasFromWebpageCommon (protocol True),
+    HasToWebpageCommon (protocol False)
   ) =>
   WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
 
-data WebpageCommonData = WebpageCommonData
+type Comments = [Comment]
+
+type CommentId = Text
+
+data Comment = Comment
+  { uniqueId :: CommentId,
+    replyingTo :: CommentId,
+    name :: Text,
+    timestamp :: EpochTime,
+    twitter :: Text,
+    message :: Text
+  }
+  deriving (Eq, Show, Generic)
+
+deriving instance Generic CTime
+
+instance Binary CTime
+
+instance Binary Comment
+
+instance Aeson.FromJSON Comment
+
+-- Common WebpageHakyllDataExchangeProtocol
+instance WebpageHakyllDataExchangeProtocol CommonProtocol
+
+data family CommonProtocol (isFromWebpage :: Bool)
+
+data instance CommonProtocol True = FromWebpage
   { title :: Text,
     description :: Text,
-    modifiedDates :: [Text] -- older first iso8601
+    modifiedDates :: [Text], -- older first iso8601
+    fileRequests :: [FilePath]
   }
   deriving (Show, Generic)
 
-instance Binary WebpageCommonData
+instance Binary (CommonProtocol True)
 
-instance HasTitle WebpageCommonData
+instance HasFromWebpageCommon (CommonProtocol True)
 
-instance HasDescription WebpageCommonData
+instance HasTitle (CommonProtocol True)
 
-instance HasModifiedDates WebpageCommonData
+instance HasDescription (CommonProtocol True)
+
+instance HasModifiedDates (CommonProtocol True)
+
+instance HasFileContentsRequest (CommonProtocol True)
+
+data instance CommonProtocol False = ToWebpage
+  { path :: FilePath,
+    comments :: Comments,
+    fileContents :: [BL.ByteString]
+  }
+  deriving (Show, Generic)
+
+instance Binary (CommonProtocol False)
+
+instance HasToWebpageCommon (CommonProtocol False)
+
+instance HasPath (CommonProtocol False)
+
+instance HasComments (CommonProtocol False)
+
+instance HasFileContentsResponse (CommonProtocol False)
 
 -- WebpageHakyllDataExchangeProtocol for Article
 instance WebpageHakyllDataExchangeProtocol ArticleProtocol
@@ -259,7 +331,7 @@ data instance ArticleProtocol True = FromArticle
   }
   deriving (Show, Eq, Generic)
 
-instance HasWebpageCommonData (ArticleProtocol True)
+instance HasFromWebpageCommon (ArticleProtocol True)
 
 instance HasTitle (ArticleProtocol True)
 
@@ -278,14 +350,19 @@ instance Default (ArticleProtocol True) where
 
 data instance ArticleProtocol False = ToArticle
   { path :: FilePath,
+    comments :: Comments,
     fileContents :: [BL.ByteString]
   }
   deriving (Show, Eq, Generic)
 
 instance Default (ArticleProtocol False) where
-  def = ToArticle mempty mempty
+  def = ToArticle mempty mempty mempty
+
+instance HasToWebpageCommon (ArticleProtocol False)
 
 instance HasPath (ArticleProtocol False)
+
+instance HasComments (ArticleProtocol False)
 
 instance HasFileContentsResponse (ArticleProtocol False)
 
@@ -304,7 +381,7 @@ data instance IndexProtocol True = FromIndex
   }
   deriving (Show, Eq, Generic)
 
-instance HasWebpageCommonData (IndexProtocol True)
+instance HasFromWebpageCommon (IndexProtocol True)
 
 instance HasTitle (IndexProtocol True)
 
@@ -323,14 +400,19 @@ data instance IndexProtocol False = ToIndex
   { path :: FilePath,
     externals :: [Link],
     articles :: [Link],
+    comments :: Comments,
     fileContents :: [BL.ByteString]
   }
   deriving (Show, Eq, Generic)
 
 instance Default (IndexProtocol False) where
-  def = ToIndex mempty mempty mempty mempty
+  def = ToIndex mempty mempty mempty mempty mempty
+
+instance HasToWebpageCommon (IndexProtocol False)
 
 instance HasPath (IndexProtocol False)
+
+instance HasComments (IndexProtocol False)
 
 instance HasFileContentsResponse (IndexProtocol False)
 

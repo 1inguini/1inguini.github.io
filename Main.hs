@@ -21,6 +21,8 @@ postsHaskell = fromGlob $ postsDir <> "index.hs"
 
 htmls = "**/*.html"
 
+comments = "comments/**/entry*.json"
+
 defaultIndexData :: IndexProtocol False
 defaultIndexData =
   def
@@ -36,13 +38,13 @@ defaultIndexData =
           ]
     }
 
--- camelToSnake ::
-camelToSnake :: String -> String
-camelToSnake (c : cs) =
-  let upperToUnderscore c
-        | C.isUpper c = ('_' :) . (C.toLower c :)
-        | otherwise = (c :)
-   in C.toLower c : foldr upperToUnderscore "" cs
+-- -- camelToSnake ::
+-- camelToSnake :: String -> String
+-- camelToSnake (c : cs) =
+--   let upperToUnderscore c
+--         | C.isUpper c = ('_' :) . (C.toLower c :)
+--         | otherwise = (c :)
+--    in C.toLower c : foldr upperToUnderscore "" cs
 
 feedContext ::
   WebpageHakyllDataExchangeProtocol protocol =>
@@ -74,6 +76,10 @@ feedContext page =
 --         item <- makeItem "hello"
 --         index <- load "1900-01-01.html"
 --         renderRss defaultFeedConfig (defaultContext <> constField "description" "hoge") [index]
+loadRelative :: FilePath -> Compiler BL.ByteString
+loadRelative path =
+  (fromFilePath . takeDirectory . (</> path) <$> getResourceFilePath)
+    >>= loadBody
 
 main :: IO ()
 main =
@@ -86,14 +92,12 @@ main =
               articles <-
                 fmap (itemBody >>> second (view titleL))
                   <$> ( loadAllSnapshots postsHaskell pathAndWebpageData ::
-                          Compiler [Item (FilePath, WebpageCommonData)]
+                          Compiler [Item (FilePath, CommonProtocol True)]
                       )
               index <- interpret "index" (Hint.as :: Webpage IndexProtocol)
+              requestedFiles <- mapM loadRelative $ view fileRequestsL index
               webpageCompiler
-                defaultIndexData
-                  { fileContents = mempty,
-                    articles = articles
-                  }
+                (set fileContentsL requestedFiles defaultIndexData {articles = articles})
                 $ view webpageBodyL index
 
           match postsHaskell $ do
@@ -103,16 +107,14 @@ main =
               blogPost <- interpret "post" (Hint.as :: Webpage ArticleProtocol)
               makeItem (path, view webpageCommonDataL blogPost)
                 >>= saveSnapshot pathAndWebpageData
-              srcDir <- takeDirectory <$> getResourceFilePath
-              requestedFiles <-
-                mapM
-                  (loadBody . fromFilePath . (srcDir </>) :: FilePath -> Compiler BL.ByteString)
-                  $ view fileRequestsL blogPost
+              requestedFiles <- mapM loadRelative $ view fileRequestsL blogPost
               webpageCompiler
-                (def {path = path, fileContents = requestedFiles} :: ArticleProtocol False)
+                (def & set pathL path . set fileContentsL requestedFiles :: ArticleProtocol False)
                 $ view webpageBodyL blogPost
 
           match htmls $ compile getResourceLBS
+
+          match comments $ compile getResourceLBS
 
 webpageCompiler ::
   WebpageHakyllDataExchangeProtocol protocol =>

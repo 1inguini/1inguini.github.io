@@ -35,8 +35,10 @@ dependencies:
 - optics
 - generic-optics
 - data-default-class
+- aeson
 
 default-extensions:
+- ConstraintKinds
 - DataKinds
 - DefaultSignatures
 - DeriveGeneric
