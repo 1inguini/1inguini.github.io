@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html>
+
+<head prefix="og:https://ogp.me/ns#">
+    <meta charset="utf-8">
+    <title>ブログ準備中その0</title>
+    <meta property="og:site_name" content="linguiniのブログ">
+    <meta property="og:image" content="https://avatars0.githubusercontent.com/u/42938754?s=400&amp;v=4">
+    <meta property="og:title" content="ブログ準備中その0">
+    <meta property="og:description" content="HakyllとLucidでブログ書き始めたよ">
+    <meta content="summary" name="twitter:card">
+    <meta content="blog" name="linguini">
+    <meta content="Hakyll" name="generator">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <link href="https://avatars0.githubusercontent.com/u/42938754" rel="icon">
+    <link href="https://cdn.jsdelivr.net/npm/@exampledev/new.css/new.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <h2><a href="/">linguiniの✨ブログ✨</a></h2>
+    </header>
+    <main>
+        <article>
+            <h2>ブログ準備中その0</h2>
+            <section>
+                <h3>きっかけ</h3>
+                <p>ことの発端は<a href="https://linguini.booth.pm/items/2496957" rel="noreferrer noopener" target="_blank">リア-アリス向けロングコート</a>のライセンスを公開するために作った<a href="https://github.com/1inguini/Licences" rel="noreferrer noopener" target="_blank">1inguini/Licences</a>をみていたときに、「<a href="https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf" rel="noreferrer noopener" target="_blank">https://1inguini.github.io/Licences/RearAliceCoatVN3license.pdf</a>を公開してるのに<a href="https://1inguini.github.io/Licences" rel="noreferrer noopener" target="_blank">https://1inguini.github.io/Licences</a>に行こうとすると404になるの納得いかないな」と思い立ってindex.html書き始めたことでして。</p>
+                <p>index.htmlを書いているうちに(vscodeの補完が優秀だったこともあり)html書くの楽しいなと思ったものの<a href="https://1inguini.github.io/Licences" rel="noreferrer noopener" target="_blank">https://1inguini.github.io/Licences</a>に書く内容は大して無いのですぐに物足りなくなったわけで。</p>
+                <p>気付いたら<a href="http://jaspervdj.be/hakyll" rel="noreferrer noopener" target="_blank">Hakyll</a>と<a href="https://hackage.haskell.org/package/lucid" rel="noreferrer noopener" target="_blank">Lucid</a>でブログを書こうとしていました。</p>
+            </section>
+            <section>
+                <h3>今までの進捗</h3>
+                <p>Hakyllは生成したファイルを_site/以下に吐くのでgitのルートディレクトリか/docディレクトリかにサイトがあることを期待するGitHub Pagesに使うには少し工夫が必要でした。何したかって言いますとgh-pagesブランチを作ってそれを<code>git submodule add -b gh-pages https://github.com/1inguini/1inguini.github.io.git _site</code>しました。「しました」ってさらっと書いてますが<code>stack run rebuild</code>して.gitディレクトリを消し飛ばしたり<code>git reset --hard</code><code>git push -f</code>しまくったりと(良い子は真似しないでね!)すんなりはできませんでした(もっとgitと仲良くなろうね)。ところで今見たらHakyll側で割と簡単に出力先を変えれるっぽいな?</p>
+                <p>というわけで早速<code>main = hakyll $ do</code>を<code>hakyllWith defaultConfiguration { destinationDirectory = "doc" } $ do</code>に置き換えました。いやー快適。やったね。</p>
+            </section>
+            <section>
+                <h3>追記</h3>
+                <p>docじゃなくてdocsだったわウケ。「No <code>/docs</code> folder was found to build GitHub Pages. Check the source setting for this repository.」って怒られちゃった。</p>
+            </section>
+        </article>
+    </main>
+    <section>
+        <h2>コメント欄</h2>
+        <form onsubmit="var form = this;
+var message = form.message.value;
+form.message.value=&#39;&#39;;
+form.message.placeholder=&#39;コメント送信中...&#39;;
+var req = new XMLHttpRequest ();
+
+req.open(
+  &#39;POST&#39;,
+  &#39;https://staticman-1inguini.herokuapp.com/v2/entry/1inguini/1inguini.github.io/master/comments&#39;,
+  true
+);
+
+req.setRequestHeader(
+  &#39;Content-Type&#39;,
+  &#39;application/x-www-form-urlencoded;charset=UTF-8&#39;
+);
+
+req.onreadystatechange = function() {
+  if (this.readyState === XMLHttpRequest.DONE){
+    if (this.status == 200) {
+      form.message.placeholder=&#39;マサカリを投げる&#39;;
+    } else {
+      form.message.placeholder=&#39;コメント失敗&#39;;
+    }
+  }
+}
+
+var query =
+  &#39;options[title]=&#39; + encodeURIComponent(&#39;ブログ準備中その0&#39;)
+  + &#39;&amp;options[path]=&#39; + encodeURIComponent(&#39;posts/Haskell/preparing_blog0/&#39;)
+  + &#39;&amp;fields[name]=&#39; + encodeURIComponent(form.name.value)
+  + &#39;&amp;fields[message]=&#39; + encodeURIComponent(message);
+if (form.twitter.value) {
+  query += &#39;&amp;fields[twitter]=&#39; + encodeURIComponent(form.twitter.value);
+}
+req.send(query);
+
+return false;
+"><label>ハンドルネーム<input required="required" onkeydown="if(event.key == &#39;Enter&#39;) {
+  this.form.twitter.focus();
+  return false;
+}
+" name="name" type="text"></label><label>twitter垢(任意)<input pattern="^(\w{1,15})$" maxlength="15" onkeydown="if(event.key == &#39;Enter&#39;) {
+  this.form.message.focus();
+  return false;
+}
+" name="twitter" type="text" placeholder="1inguini"></label><textarea cols="100" required="required" rows="10" onkeydown="if(this.form.reportValidity() &amp;&amp; event.ctrlKey &amp;&amp; event.key == &#39;Enter&#39;) {
+  this.form.onsubmit();
+  return false;
+}
+" name="message" placeholder="マサカリを投げる"></textarea><button type="submit">送信</button></form>
+    </section>
+    <footer>Copyright: © 2020 linguini. Site proudly generated by <a href="http://jaspervdj.be/hakyll" rel="noreferrer noopener" target="_blank">Hakyll</a>. Visit the site repository from <a href="https://github.com/1inguini/1inguini.github.io" rel="noreferrer noopener" target="_blank">here</a>.</footer>
+</body>
+
+</html>
