@@ -28,7 +28,7 @@
                 <p>Lucidからhtmlを生成するときにHint(Runtime Haskell interpreter)使うようにして新しい記事を作るたびにHakyllをビルドしなくてよくなった。Hakyll.loadAllSnapShotsは型がわからないと動かないので使ってるところを書く前はエラーが出るが型注釈を書けばエラーは消える</p><!-- Created by htmlize-1.56 in css mode. -->
                 <style type="text/css">
                     <!--
-                    body {
+                    .emacs-htmlize {
                         color: #c6c6c6;
                         background-color: #303030;
                     }
@@ -130,23 +130,10 @@
                         /* font-lock-string-face */
                         color: #ff4ea3;
                     }
-
-                    a {
-                        color: inherit;
-                        background-color: inherit;
-                        font: inherit;
-                        text-decoration: inherit;
-                    }
-
-                    a:hover {
-                        text-decoration: underline;
-                    }
                     -->
                 </style>
-                </head>
 
-                <body>
-                    <pre>
+                <pre class="emacs-htmlize">
 <span class="haskell-pragma">{-# LANGUAGE OverloadedStrings #-}</span>
 
 <span class="haskell-keyword">module</span> <span class="haskell-constructor">Main</span> <span class="haskell-keyword">where</span>
