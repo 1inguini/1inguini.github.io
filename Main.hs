@@ -78,7 +78,7 @@ feedContext page =
 --         renderRss defaultFeedConfig (defaultContext <> constField "description" "hoge") [index]
 loadRelative :: FilePath -> Compiler BL.ByteString
 loadRelative path =
-  (fromFilePath . takeDirectory . (</> path) <$> getResourceFilePath)
+  (fromFilePath . (</> path) . takeDirectory <$> getResourceFilePath)
     >>= loadBody
 
 main :: IO ()
