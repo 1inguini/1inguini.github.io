@@ -229,7 +229,10 @@ deriving instance Semigroup (WebpageBody protocol ())
 instance Default (WebpageBody protocol ()) where
   def = WebpageBody mempty
 
-instance Default (WebpageEnv protocol) => Show (WebpageBody protocol ()) where
+instance
+  (WebpageHakyllDataExchangeProtocol protocol, Default (WebpageEnv protocol)) =>
+  Show (WebpageBody protocol ())
+  where
   show = show . renderWebpageBody def
 
 instance IsString (WebpageBody protocol ()) where
@@ -241,13 +244,19 @@ instance (f ~ WebpageBody protocol a) => Term [Attribute] (f -> WebpageBody prot
 instance Term (WebpageBody protocol a) (WebpageBody protocol a) where
   termWith name f = WebpageBody . termWith name f . runWebpageBody
 
-toWebpageBody :: ToHtml a => a -> WebpageBody protocol ()
+toWebpageBody ::
+  (WebpageHakyllDataExchangeProtocol protocol, ToHtml a) =>
+  (a -> WebpageBody protocol ())
 toWebpageBody = WebpageBody . toHtml
 
-toWebpageBodyRaw :: ToHtml a => a -> WebpageBody protocol ()
+toWebpageBodyRaw ::
+  (WebpageHakyllDataExchangeProtocol protocol, ToHtml a) =>
+  (a -> WebpageBody protocol ())
 toWebpageBodyRaw = WebpageBody . toHtmlRaw
 
-renderWebpageBody :: WebpageEnv protocol -> WebpageBody protocol () -> BL.ByteString
+renderWebpageBody ::
+  WebpageHakyllDataExchangeProtocol protocol =>
+  (WebpageEnv protocol -> WebpageBody protocol () -> BL.ByteString)
 renderWebpageBody env body =
   runWebpageBody body
     & renderBST
@@ -258,8 +267,8 @@ type Comments = [Comment]
 type CommentId = Text
 
 data Comment = Comment
-  { uniqueId :: CommentId,
-    replyingTo :: CommentId,
+  { _id :: CommentId,
+    replying_to :: CommentId,
     name :: Text,
     timestamp :: EpochTime,
     twitter :: Text,
@@ -274,6 +283,9 @@ instance Binary CTime
 instance Binary Comment
 
 instance Aeson.FromJSON Comment
+
+instance Ord Comment where
+  compare c0 c1 = compare (timestamp c0) (timestamp c1)
 
 -- Common WebpageHakyllDataExchangeProtocol
 instance WebpageHakyllDataExchangeProtocol CommonProtocol
@@ -487,6 +499,12 @@ instance
   HasPath (WebpageEnv protocol)
   where
   pathL = typed @(protocol False) % pathL
+
+instance
+  WebpageHakyllDataExchangeProtocol protocol =>
+  HasComments (WebpageEnv protocol)
+  where
+  commentsL = typed @(protocol False) % commentsL
 
 instance
   WebpageHakyllDataExchangeProtocol protocol =>

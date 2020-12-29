@@ -19,9 +19,9 @@ import System.IO (hPutStrLn)
 
 postsDir, postsHaskell, htmls, commentsRoot, comments :: FilePath
 postsDir = "posts/*/*"
-htmls = "**/*.html"
+htmls = "**.html"
 commentsRoot = "comments"
-comments = commentsRoot </> "**/entry*.json"
+comments = commentsRoot </> "**.json"
 postsHaskell = postsDir </> "index.hs"
 
 indexDataWithExternals :: IndexProtocol False
@@ -104,11 +104,19 @@ populateCommon fromWebpage toWebpage = (`execStateT` toWebpage) $ do
   lsOfMayComm <-
     lift
       ( fmap (Aeson.decode :: BL.ByteString -> Maybe Comment)
-          <$> loadBodies (fromGlob $ commentsRoot </> path)
+          <$> loadBodies
+            ( fromGlob $
+                commentsRoot
+                  </> (\case '.' : p -> p; p -> p) (takeDirectory path)
+                  <> "*.json"
+            )
       )
   modify . set commentsL =<< case lsOfMayComm of
     [] -> pure []
-    _ -> lift $ maybe (fail "failed at decoding comments") pure $ sequenceA lsOfMayComm
+    _ ->
+      lift $
+        maybe (fail "failed at decoding comments") pure $
+          sequenceA lsOfMayComm
 
   modify =<< lift (setFileContents fromWebpage)
 
@@ -117,7 +125,7 @@ main =
   hakyllWith defaultConfiguration {destinationDirectory = "docs"} $
     let pathAndWebpageData = "#0"
      in do
-          match "pages/Index.hs" $ do
+          match "pages/index.hs" $ do
             route $ constRoute "index.html"
             compile $ do
               articles <-
