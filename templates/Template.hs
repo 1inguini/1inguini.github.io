@@ -173,6 +173,7 @@ webpageCommon webpage =
                             "var query =",
                             "  'options[title]=' + encodeURIComponent('" <> view titleL webpage <> "')",
                             "  + '&options[path]=' + encodeURIComponent('" <> postDir <> "')",
+                            "  + '&fields[replying_to]=' + encodeURIComponent('" <> "')",
                             "  + '&fields[name]=' + encodeURIComponent(form.name.value)",
                             "  + '&fields[message]=' + encodeURIComponent(message)",
                             "  + '&fields[twitter]=' + encodeURIComponent(form.twitter.value);",
