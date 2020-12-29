@@ -1,5 +1,8 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Main where
 
+import qualified Data.Aeson as Aeson
 import Data.Binary (decode)
 import Hakyll
 import Language.Haskell.Interpreter (OptionVal ((:=)))
@@ -10,21 +13,21 @@ import qualified RIO.Char as C
 import RIO.FilePath
 import qualified RIO.List as L
 import qualified RIO.Process as Proc (byteStringInput, readProcess_, setStdin)
+import RIO.State
 import qualified RIO.Text as T
 import qualified RIO.Text.Lazy as Text
 import Share
 import System.IO (hPutStrLn)
 
-postsDir = "posts/*/*/"
-
-postsHaskell = fromGlob $ postsDir <> "index.hs"
-
+postsDir, postsHaskell, htmls, commentsRoot, comments :: FilePath
+postsDir = "posts/*/*"
 htmls = "**/*.html"
+commentsRoot = "comments"
+comments = commentsRoot </> "**/entry*.json"
+postsHaskell = postsDir </> "index.hs"
 
-comments = "comments/**/entry*.json"
-
-defaultIndexData :: IndexProtocol False
-defaultIndexData =
+indexDataWithExternals :: IndexProtocol False
+indexDataWithExternals =
   def
     { externals =
         fmap
@@ -76,10 +79,40 @@ feedContext page =
 --         item <- makeItem "hello"
 --         index <- load "1900-01-01.html"
 --         renderRss defaultFeedConfig (defaultContext <> constField "description" "hoge") [index]
-loadRelative :: FilePath -> Compiler BL.ByteString
-loadRelative path =
-  (fromFilePath . (</> path) . takeDirectory <$> getResourceFilePath)
-    >>= loadBody
+
+loadBodies = (fmap itemBody <$>) . loadAll
+
+setFileContents ::
+  (HasFileContentsRequest req, HasFileContentsResponse res) =>
+  (req -> Compiler (res -> res))
+setFileContents hasRequests = do
+  postDir <- takeDirectory <$> getResourceFilePath
+  contents <-
+    mapM loadBody $
+      fromFilePath . (postDir </>)
+        <$> view fileRequestsL hasRequests
+  pure $ set fileContentsL contents
+
+populateCommon ::
+  (HasFromWebpageCommon fromWebpage, HasToWebpageCommon toWebpage) =>
+  (fromWebpage -> toWebpage -> Compiler toWebpage)
+populateCommon fromWebpage toWebpage = (`execStateT` toWebpage) $ do
+  path <-
+    lift $
+      fromMaybe (fail "failed at getting destination filepath")
+        <$> (getRoute =<< getUnderlying)
+  modify $ set pathL path
+
+  lsOfMayComm <-
+    lift
+      ( fmap (Aeson.decode :: BL.ByteString -> Maybe Comment)
+          <$> loadBodies (fromGlob $ commentsRoot </> path)
+      )
+  modify . set commentsL =<< case lsOfMayComm of
+    [] -> pure []
+    _ -> lift $ maybe (fail "failed at decoding comments") pure $ sequenceA lsOfMayComm
+
+  modify =<< lift (setFileContents fromWebpage)
 
 main :: IO ()
 main =
@@ -91,37 +124,34 @@ main =
             compile $ do
               articles <-
                 fmap (itemBody >>> second (view titleL))
-                  <$> ( loadAllSnapshots postsHaskell pathAndWebpageData ::
+                  <$> ( loadAllSnapshots (fromGlob postsHaskell) pathAndWebpageData ::
                           Compiler [Item (FilePath, CommonProtocol True)]
                       )
               index <- interpret "index" (Hint.as :: Webpage IndexProtocol)
-              requestedFiles <- mapM loadRelative $ view fileRequestsL index
-              webpageCompiler
-                (set fileContentsL requestedFiles defaultIndexData {articles = articles})
-                $ view webpageBodyL index
+              populateCommon index indexDataWithExternals {articles = articles}
+                >>= webpageCompiler (view webpageBodyL index)
 
-          match postsHaskell $ do
+          match (fromGlob postsHaskell) $ do
             route $ setExtension "html"
             compile $ do
               (Just path) <- getRoute =<< getUnderlying
               blogPost <- interpret "post" (Hint.as :: Webpage ArticleProtocol)
               makeItem (path, view webpageCommonDataL blogPost)
                 >>= saveSnapshot pathAndWebpageData
-              requestedFiles <- mapM loadRelative $ view fileRequestsL blogPost
-              webpageCompiler
-                (def & set pathL path . set fileContentsL requestedFiles :: ArticleProtocol False)
-                $ view webpageBodyL blogPost
 
-          match htmls $ compile getResourceLBS
+              populateCommon blogPost (def :: ArticleProtocol False)
+                >>= webpageCompiler (view webpageBodyL blogPost)
 
-          match comments $ compile getResourceLBS
+          match (fromGlob htmls) $ compile getResourceLBS
+
+          match (fromGlob comments) $ compile getResourceLBS
 
 webpageCompiler ::
   WebpageHakyllDataExchangeProtocol protocol =>
-  protocol False ->
   WebpageBody protocol () ->
+  protocol False ->
   Compiler (Item BL.ByteString)
-webpageCompiler envFromHakyll webpageBody =
+webpageCompiler webpageBody envFromHakyll =
   unsafeCompiler
     ( Proc.readProcess_ $
         Proc.setStdin

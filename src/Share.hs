@@ -157,6 +157,12 @@ class HasTags a where
   default tagsL :: HasField' "tags" a [Text] => Lens' a [Text]
   tagsL = field' @"tags"
 
+class
+  ( HasFromWebpageCommon (protocol True),
+    HasToWebpageCommon (protocol False)
+  ) =>
+  WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
+
 data Webpage (protocol :: Bool -> *) = Webpage
   { webpageData :: protocol True,
     webpageBody :: WebpageBody protocol ()
@@ -246,12 +252,6 @@ renderWebpageBody env body =
   runWebpageBody body
     & renderBST
     & (`runReader` env)
-
-class
-  ( HasFromWebpageCommon (protocol True),
-    HasToWebpageCommon (protocol False)
-  ) =>
-  WebpageHakyllDataExchangeProtocol (protocol :: Bool -> *)
 
 type Comments = [Comment]
 
