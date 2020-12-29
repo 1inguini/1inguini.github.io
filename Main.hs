@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Main where
 
 import qualified Data.Aeson as Aeson
@@ -187,6 +185,7 @@ interpret code as = do
                    Hint.DuplicateRecordFields,
                    Hint.GADTs,
                    Hint.GeneralizedNewtypeDeriving,
+                   Hint.LambdaCase,
                    Hint.MultiParamTypeClasses,
                    Hint.OverloadedStrings,
                    Hint.ScopedTypeVariables,

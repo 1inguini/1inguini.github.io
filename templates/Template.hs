@@ -26,7 +26,7 @@ import Lucid hiding (br_, doctypehtml_, input_, link_, meta_, required_)
 import qualified Lucid (br_, doctypehtml_, input_, link_, meta_, required_)
 import qualified Lucid.Base as Lucid (makeAttribute)
 import qualified RIO.ByteString.Lazy as BL
-import RIO.FilePath (dropFileName, normalise)
+import RIO.FilePath (takeDirectory)
 import qualified RIO.List as L
 import RIO.State
 import qualified RIO.Text as T
@@ -108,7 +108,7 @@ webpageCommon webpage =
                 hyperlinkHeader "/" "linguiniの✨ブログ✨"
                 main_ $ view webpageBodyL webpage
                 section "コメント欄" $ do
-                  postDir <- T.pack . normalise . dropFileName . view pathL <$> ask
+                  postDir <- T.pack . (\case '.' : p -> p; p -> p) . takeDirectory . view pathL <$> ask
                   form_
                     [ onsubmit_ $
                         T.unlines

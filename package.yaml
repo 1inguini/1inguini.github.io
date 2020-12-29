@@ -48,6 +48,7 @@ default-extensions:
 - DuplicateRecordFields
 - GADTs
 - GeneralizedNewtypeDeriving
+- LambdaCase
 - MultiParamTypeClasses
 - OverloadedStrings
 - ScopedTypeVariables
