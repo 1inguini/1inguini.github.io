@@ -31,7 +31,11 @@ module Share
     Comments (..),
     Link (..),
     defaultFeedConfig,
+    formatEpochTimeJST,
+    formatEpochTimeUTC,
     https,
+    jst,
+    locale,
     mkDefaultWebpageEnv,
     renderWebpageBody,
     siteName,
@@ -45,6 +49,7 @@ import qualified Data.Aeson as Aeson
 import Data.Binary (Binary)
 import Data.Default.Class
 import Data.Generics.Product
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Typeable
 import Foreign.C.Types (CTime (..))
 import GHC.Base (Constraint, Symbol)
@@ -71,6 +76,7 @@ import RIO hiding
   )
 import qualified RIO.ByteString.Lazy as BL
 import RIO.List hiding (uncons)
+import RIO.Time
 import System.Posix.Types (EpochTime)
 
 class HasPath a where
@@ -244,14 +250,10 @@ instance (f ~ WebpageBody protocol a) => Term [Attribute] (f -> WebpageBody prot
 instance Term (WebpageBody protocol a) (WebpageBody protocol a) where
   termWith name f = WebpageBody . termWith name f . runWebpageBody
 
-toWebpageBody ::
-  (WebpageHakyllDataExchangeProtocol protocol, ToHtml a) =>
-  (a -> WebpageBody protocol ())
+toWebpageBody :: ToHtml a => a -> WebpageBody protocol ()
 toWebpageBody = WebpageBody . toHtml
 
-toWebpageBodyRaw ::
-  (WebpageHakyllDataExchangeProtocol protocol, ToHtml a) =>
-  (a -> WebpageBody protocol ())
+toWebpageBodyRaw :: ToHtml a => a -> WebpageBody protocol ()
 toWebpageBodyRaw = WebpageBody . toHtmlRaw
 
 renderWebpageBody ::
@@ -285,7 +287,8 @@ instance Binary Comment
 instance Aeson.FromJSON Comment
 
 instance Ord Comment where
-  compare c0 c1 = compare (timestamp c0) (timestamp c1)
+  -- reversed
+  compare c0 c1 = compare (timestamp c1) (timestamp c0)
 
 -- Common WebpageHakyllDataExchangeProtocol
 instance WebpageHakyllDataExchangeProtocol CommonProtocol
@@ -527,6 +530,25 @@ mkDefaultWebpageEnv toWebpage =
           },
       toWebpage = toWebpage
     }
+
+jst :: TimeZone
+jst = TimeZone (9 * 60) False "JST"
+
+locale :: TimeLocale
+locale =
+  defaultTimeLocale
+    { knownTimeZones = [utc, jst]
+    }
+
+formatEpochTimeUTC :: EpochTime -> String
+formatEpochTimeUTC epochTime =
+  formatTime locale "%Y/%m/%d %T %Z" $
+    posixSecondsToUTCTime $ realToFrac epochTime
+
+formatEpochTimeJST :: EpochTime -> String
+formatEpochTimeJST epochTime =
+  formatTime locale "%Y/%m/%d %T %Z" $
+    utcToZonedTime jst $ posixSecondsToUTCTime $ realToFrac epochTime
 
 siteName :: IsString a => a
 siteName = "linguiniのブログ"

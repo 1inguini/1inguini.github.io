@@ -36,6 +36,7 @@ dependencies:
 - generic-optics
 - data-default-class
 - aeson
+- time
 
 default-extensions:
 - ConstraintKinds

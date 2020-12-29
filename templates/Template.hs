@@ -30,7 +30,6 @@ import RIO.FilePath (takeDirectory)
 import qualified RIO.List as L
 import RIO.State
 import qualified RIO.Text as T
-import RIO.Time
 import Share
 
 doctypehtml_ :: WebpageBody protocol () -> WebpageBody protocol ()
@@ -89,21 +88,24 @@ renderComments =
         WebpageHakyllDataExchangeProtocol protocol =>
         Comment ->
         WebpageBody protocol ()
-      renderComment comment = article_ $
+      renderComment comment =
         blockquote_ $ do
-          dt_ $ do
-            "comment by " :: WebpageBody protocol ()
-            ( if T.null (twitter comment)
-                then id
-                else hyperlink (https $ "twitter.com/" <> twitter comment)
-              )
-              $ toWebpageBody $ name comment
-          dl_ $
-            toWebpageBody $
-              message comment
+          paragraph $ toWebpageBody $ message comment
+          small_
+            ( do
+                "comment by " :: WebpageBody protocol ()
+                ( if T.null (twitter comment)
+                    then id
+                    else hyperlink (https $ "twitter.com/" <> twitter comment)
+                  )
+                  $ toWebpageBody $ name comment
+                " on " :: WebpageBody protocol ()
+                toWebpageBody (formatEpochTimeJST $ timestamp comment)
+                " (" <> toWebpageBody (formatEpochTimeUTC $ timestamp comment) <> ")"
+            )
    in do
         comments <- sort . view commentsL <$> ask
-        dl_ $ mapM_ renderComment comments
+        mapM_ renderComment comments
 
 webpageCommon ::
   WebpageHakyllDataExchangeProtocol protocol =>
