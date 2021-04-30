@@ -34,7 +34,7 @@ indexDataWithExternals =
             ("twitter.com/1inguini1tasita", "Twitterの飲精アカウント"),
             ("github.com/1inguini", "GitHub"),
             ("linguini.booth.pm", "BOOTH"),
-            ("www.amazon.co.jp/hz/wishlist/dl/invite/9U7xlqn?ref_=wl_share", "干し芋"),
+            ("www.amazon.co.jp/hz/wishlist/dl/invite/gU4K2gF?ref_=wl_share", "干し芋"),
             ("vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
           ]
     }
