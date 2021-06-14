@@ -34,7 +34,8 @@ indexDataWithExternals =
             ("twitter.com/1inguini1tasita", "Twitterの飲精アカウント"),
             ("github.com/1inguini", "GitHub"),
             ("linguini.booth.pm", "BOOTH"),
-            ("www.amazon.co.jp/hz/wishlist/dl/invite/71kMz2a?ref_=wl_share", "干し芋"),
+            ("www.amazon.co.jp/hz/wishlist/dl/invite/g4Womik?ref_=wl_share", "干し芋(amazon)"),
+            ("my.aliexpress.com/wishlist/wish_list_product_list.htm?spm=a2g0s.8937460.0.0.643c2e0eb67CrL&currentGroupId=1000000008064076", "干しいも(AliExpress)"),
             ("vrchat.com/home/user/usr_7be90808-2858-4707-b1b9-b2b5636ba686", "VRChat")
           ]
     }
