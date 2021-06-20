@@ -44,7 +44,7 @@ jobs:
           cache-name: cache-stack
         with:
           path: ~/.stack
-          key: stack-${{ runner.os }}-${{ env.cache-name }} #-${{ steps.timestamp.modified }}
+          key: stack-${{ runner.os }}-${{ env.cache-name }}-${{ secrets.CACHE_VERSION }} #-${{ steps.timestamp.modified }}
           # restore-keys: |
           #   stack-${{ runner.os }}-${{ env.cache-name }}-
 
